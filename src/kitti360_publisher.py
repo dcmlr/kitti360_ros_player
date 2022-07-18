@@ -43,7 +43,7 @@ import itertools
 
 
 class Kitti360DataPublisher:
-    NODENAME = "kitti360_data_publisher"
+    NODENAME = "kitti360_publisher"
     DESIRED_RATE = 100  # Hz
 
     # Data paths
