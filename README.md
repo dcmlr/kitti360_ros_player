@@ -1,4 +1,4 @@
-# ROS publisher node for the KITTI-360 Dataset
+# ROS publisher node for the KITTI-360 Dataset (WORK IN PROGRESS)
 
 This ROS package takes each sensor from the
 [KITTI-360](http://www.cvlibs.net/datasets/kitti-360/) dataset and publishes it
