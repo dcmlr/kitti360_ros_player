@@ -1353,7 +1353,7 @@ class Kitti360DataPublisher:
             "|    d       : step to next frame by SICK                            |"
         )
         print(
-            "|    <space> : pause/unpause sim                                     |"
+            "|    <space> : pause/unpause simulation                              |"
         )
         print(
             "|    k       : increase playback speed factor by 0.1                 |"
