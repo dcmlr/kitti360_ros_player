@@ -4,12 +4,12 @@
     <param name="/use_sim_time" value="true" />
 
 	<!-- simulation configuration -->
-    <arg name="rate"        default="1"          doc="The playback speed as a factor." />
-	<arg name="looping"     default="True"       doc="Whether to loop the bag file." />
+    <arg name="rate"        default="1"          doc="The playback speed as a factor" />
+	<arg name="looping"     default="True"       doc="Whether to loop the bag file" />
     <arg name="start"       default="0.0"        doc="Start seconds into the bag file" />
     <arg name="end"         default="99999999"   doc="Stop at seconds into bag file" />
-    <arg name="sequence"    default="00"         doc="The KITTI-360 odometry dataset sequence to play." />
-    <arg name="directory"   default=""           doc="The path to the KIITI-360 dataset directory. The referenced directory should contain folders of the level `data_raw_3d`, `calibrations`, etc."/>
+    <arg name="sequence"    default="00"         doc="The KITTI-360 odometry dataset sequence to play" />
+    <arg name="directory"   default=""           doc="The path to the KIITI-360 dataset directory The referenced directory should contain folders of the level `data_raw_3d`, `calibrations`, etc"/>
 
     <param name="/kitti360_player/rate"        value="$(arg rate)" />
     <param name="/kitti360_player/looping"     value="$(arg looping)" />
@@ -19,15 +19,15 @@
     <param name="/kitti360_player/directory"   value="$(arg directory)" />
 
     <!-- what data to show/load/publish or not - if disabled here, will also not be loaded into RAM -->
-    <arg name="pub_velodyne"                        default="True"   doc="velodyne pointcloud." />
-    <arg name="pub_sick_points"                     default="True"   doc="sick points." />
-    <arg name="pub_perspective_rectified_left"      default="True"   doc="images of left perspective camera." />
-    <arg name="pub_perspective_rectified_right"     default="True"   doc="images of right perspective camera." />
-    <arg name="pub_perspective_unrectified_left"    default="True"   doc="images of left perspective camera (unrectified)." />
-    <arg name="pub_perspective_unrectified_right"   default="True"   doc="images of right perspective camera (unrectified)." />
-    <arg name="pub_fisheye_left"                    default="True"   doc="images of left fisheye camera." />
-    <arg name="pub_fisheye_right"                   default="True"   doc="images of right fisheye camera." />
-    <arg name="pub_bounding_boxes"                  default="True"   doc="bounding boxes." />
+    <arg name="pub_velodyne"                        default="True"   doc="velodyne pointcloud" />
+    <arg name="pub_sick_points"                     default="True"   doc="sick points" />
+    <arg name="pub_perspective_rectified_left"      default="True"   doc="images of left perspective camera" />
+    <arg name="pub_perspective_rectified_right"     default="True"   doc="images of right perspective camera" />
+    <arg name="pub_perspective_unrectified_left"    default="True"   doc="images of left perspective camera (unrectified)" />
+    <arg name="pub_perspective_unrectified_right"   default="True"   doc="images of right perspective camera (unrectified)" />
+    <arg name="pub_fisheye_left"                    default="True"   doc="images of left fisheye camera" />
+    <arg name="pub_fisheye_right"                   default="True"   doc="images of right fisheye camera" />
+    <arg name="pub_bounding_boxes"                  default="True"   doc="bounding boxes" />
     <arg name="pub_2d_semantics_left"               default="True"   doc="semantic ID of each pixel (left cam)" />
     <arg name="pub_2d_semantics_right"              default="True"   doc="semantic ID of each pixel (right cam)" />
     <arg name="pub_2d_semantics_rgb_left"           default="True"   doc="color-coded semantic label for each pixel (left cam)" />
