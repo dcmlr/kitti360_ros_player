@@ -41,9 +41,22 @@ present. Everything else is optional.
     |    b       : print duration of each publishing step                |
     +--------------------------------------------------------------------+
 
+**Basic Configuration**
+
+The following parameters can be configure on launch:
+
+| parameter name | default | description |
+| --- | --- | --- |
+| rate |       1 |         The playback speed as a factor |
+| looping |    True |      Whether to loop the bag file| 
+| start |      0.0 |       Start seconds into the bag file |
+| end |        99999999 |  Stop at seconds into bag file |
+| sequence |   00 |        The KITTI-360 odometry dataset sequence to play |
+| directory |             | The path to the KIITI-360 rectory |
+
 **Performance**
 
-The main bottleneck of simulation is reading the `*.png` from the hard drive.
+The main bottleneck of simulation is reading the `*.png` files from the hard drive.
 Therefore, when enabling all sensors, the simulation will not be able to keep
 up with real-time and skip frames. 
 
@@ -83,15 +96,15 @@ The parameter names for each sensor are listed below:
 
 | parameter name | description |
 | --- | --- |
-|`pub_velodyne`                     |velodyne pointcloud. |
-|`pub_sick_points`                  |sick points. |
-|`pub_perspective_rectified_left`   |images of left perspective camera. |
-|`pub_perspective_rectified_right`  |images of right perspective camera. |
-|`pub_perspective_unrectified_left` |images of left perspective camera (unrectified). |
-|`pub_perspective_unrectified_right`|images of right perspective camera (unrectified). |
-|`pub_fisheye_left`                 |images of left fisheye camera. |
-|`pub_fisheye_right`                |images of right fisheye camera. |
-|`pub_bounding_boxes`               |bounding boxes. |
+|`pub_velodyne`                     |velodyne pointcloud |
+|`pub_sick_points`                  |sick points |
+|`pub_perspective_rectified_left`   |images of left perspective camera |
+|`pub_perspective_rectified_right`  |images of right perspective camera |
+|`pub_perspective_unrectified_left` |images of left perspective camera (unrectified) |
+|`pub_perspective_unrectified_right`|images of right perspective camera (unrectified) |
+|`pub_fisheye_left`                 |images of left fisheye camera |
+|`pub_fisheye_right`                |images of right fisheye camera |
+|`pub_bounding_boxes`               |bounding boxes |
 |`pub_2d_semantics_left`            |semantic ID of each pixel (left cam) |
 |`pub_2d_semantics_right`           |semantic ID of each pixel (right cam) |
 |`pub_2d_semantics_rgb_left`        |color-coded semantic label for each pixel (left cam) |
