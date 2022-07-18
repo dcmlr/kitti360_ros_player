@@ -1,6 +1,7 @@
 # ROS publisher node for the KITTI-360 Dataset
 
-This ROS package takes each sensor from the KITTI-360 dataset and publishes it
+This ROS package takes each sensor from the
+[KITTI-360](http://www.cvlibs.net/datasets/kitti-360/) dataset and publishes it
 in ROS. The simulation can be paused, speed up, run frame by frame.
 
 ## Quick Start
@@ -26,6 +27,11 @@ present. Everything else is optional.
             |- poses.txt
 
 ## Usage
+
+**Required Directory Structure**
+
+This package assumes that the sensor data is structured as specified in the
+[KITTI-360](http://www.cvlibs.net/datasets/kitti-360/documentation.php) documentation.
 
 **Keyboard Mappings**
 
