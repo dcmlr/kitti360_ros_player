@@ -1169,7 +1169,6 @@ class Kitti360DataPublisher:
     def _publish_2d_semantics(self, frame):
         durations = dict()
 
-        # TODO timings
         # NOTE the are gaps and the dataset does not contain semantics for all
         # images. That is why we simply pass when the file it not found
 
