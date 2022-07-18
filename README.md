@@ -1,9 +1,9 @@
-## ROS publisher node for the KITTI-360 Dataset
+# ROS publisher node for the KITTI-360 Dataset
 
 This ROS package takes each sensor from the KITTI-360 dataset and publishes it
 in ROS. The simulation can be paused, speed up, run frame by frame.
 
-#### Quick Start
+## Quick Start
 
 **Launch Simulation:** To start the simulation you use `roslaunch` and specify the launch file
 `launch/Kitti360.launch` as well as the directory where the KITTI-360 are
@@ -25,7 +25,7 @@ present. Everything else is optional.
         |- 2013_05_28_drive_{seq:0>4}_sync
             |- poses.txt
 
-#### Usage
+## Usage
 
 **Keyboard Mappings**
 
@@ -124,14 +124,14 @@ itself automatically and print an error message in the logs.
 
 Python 3.9 and package dependencies are listed in `requirements.txt`.
 
-#### Contribution
+## Contribution
 
 As of now, this package has barely been used and is not sufficiently tested. If
 you encounter any issues please open a GitHub issue or contact me via email
 clemens.mosig@fu-berlin.de.  Also, please do not hesitate to send pull
 requests!
 
-#### Notes / Todos
+## Notes / Todos
 
 If you have comments on this or would like to contribute please send me an
 email (clemens.mosig@fu-berlin.de) or open a pull request.
