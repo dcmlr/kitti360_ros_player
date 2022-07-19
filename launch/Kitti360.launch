@@ -5,10 +5,10 @@
 
 	<!-- simulation configuration -->
     <arg name="rate"        default="1"          doc="The playback speed as a factor" />
-	<arg name="looping"     default="True"       doc="Whether to loop the bag file" />
-    <arg name="start"       default="0.0"        doc="Start seconds into the bag file" />
-    <arg name="end"         default="99999999"   doc="Stop at seconds into bag file" />
-    <arg name="sequence"    default="00"         doc="The KITTI-360 odometry dataset sequence to play" />
+	<arg name="looping"     default="True"       doc="Whether to loop back to start at the end" />
+    <arg name="start"       default="0.0"        doc="Start N seconds into the simulation" />
+    <arg name="end"         default="99999999"   doc="Stop N seconds into the simulation" />
+    <arg name="sequence"    default="00"         doc="The KITTI-360 dataset sequence to play" />
     <arg name="directory"   default=""           doc="The path to the KIITI-360 dataset directory The referenced directory should contain folders of the level `data_raw_3d`, `calibrations`, etc"/>
 
     <param name="/kitti360_player/rate"        value="$(arg rate)" />

@@ -4,6 +4,8 @@ This ROS package takes each sensor from the
 [KITTI-360](http://www.cvlibs.net/datasets/kitti-360/) dataset and publishes it
 in ROS. The simulation can be paused, speed up, and one can step frame by frame.
 
+If you have comments or questions please contact clemens.mosig@fu-berlin.de.
+
 ## Quick Start
 
 **Launch Simulation:** To start the simulation you use `roslaunch` and specify the launch file
@@ -11,6 +13,10 @@ in ROS. The simulation can be paused, speed up, and one can step frame by frame.
 located.
 
     roslaunch launch/Kitti360.launch directory:=/path/to/kitti/files/...
+
+This will start the simulation and publish all available sensors in ROS. To
+control the simulation check out the keyboard mappings that are printed upon
+start.
 
 **Mandatory KITTI-360 files**
 
@@ -26,7 +32,7 @@ present. Everything else is optional.
         |- 2013_05_28_drive_{seq:0>4}_sync
             |- poses.txt
 
-## Usage
+## Usage Guide
 
 **Required Directory Structure**
 
@@ -54,11 +60,15 @@ The following parameters can be configure on launch:
 | parameter name | default | description |
 | --- | --- | --- |
 | rate |       1 |         The playback speed as a factor |
-| looping |    True |      Whether to loop the bag file| 
-| start |      0.0 |       Start seconds into the bag file |
-| end |        99999999 |  Stop at seconds into bag file |
-| sequence |   00 |        The KITTI-360 odometry dataset sequence to play |
-| directory |             | The path to the KIITI-360 rectory |
+| looping |    True |      Whether to loop back to the start at the end| 
+| start |      0.0 |       Start N seconds into the simulation|
+| end |        99999999 |  Stop N seconds into the simulation|
+| sequence |   00 |        The KITTI-360 dataset sequence to play |
+| directory |             | The path to the KIITI-360 directory |
+
+The timestamps within the simulation start at 0, which represents the earliest
+timestamp in a respective sequence in the KITTI-360 dataset. The offsets are
+hardcoded in the function `read_timestamps()`.
 
 **Performance**
 
