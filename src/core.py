@@ -782,6 +782,7 @@ class Kitti360DataPublisher:
             df = pd.Series(os.listdir(folder_path)).to_frame(name="filename")
             df["start_frame"], df["end_frame"] = zip(*df["filename"].str.split(
                 '[_.]').str[:2].apply(lambda x: (int(x[0]), int(x[1]))))
+            df = df.sort_values(by="start_frame")
             return df
 
         if self.publish_3d_semantics_static:
@@ -1263,102 +1264,118 @@ class Kitti360DataPublisher:
 
             # TODO/NOTE ranges overlap a little bit ~15 frames
             # this code publishes the latest possible pointcloud (if there are two)
-            index = self.bounds_3d_sem_dynamic_index[
-                "start_frame"].searchsorted(frame)
-            filename = self.bounds_3d_sem_dynamic_index["filename"].iloc[index
-                                                                         - 1]
+            cand = self.bounds_3d_sem_dynamic_index[
+                (self.bounds_3d_sem_dynamic_index["start_frame"] <= frame)
+                & (self.bounds_3d_sem_dynamic_index["end_frame"] > frame)]
+            if not cand.empty:
+                path = os.path.join(self.DATA_DIRECTORY,
+                                    "data_3d_semantics/train",
+                                    self.SEQUENCE_DIRECTORY, "dynamic",
+                                    cand["filename"].iloc[0])
+            else:
+                path = None
 
-            if not self.filename_3d_semantics_dynamic == filename:
-                df = PyntCloud.from_file(
-                    os.path.join(self.DATA_DIRECTORY,
-                                 "data_3d_semantics/train",
-                                 self.SEQUENCE_DIRECTORY, "dynamic",
-                                 filename)).points
-                self.records_3d_semantics_dynamic = df.to_records(
-                    index=False).tobytes()
-                self.filename_3d_semantics_dynamic = filename
+            # check if files for frames exist and is non empty
+            if path is not None and open(path, encoding="ISO-8859-1").read(
+            ).splitlines()[3] != "element vertex 0":
 
-            msg = PointCloud2()
-            msg.header.stamp = self.timestamps_velodyne.iloc[frame]
-            msg.header.frame_id = "map"  # == "world"
-            msg.header.seq = frame
+                if not self.filename_3d_semantics_dynamic == path:
+                    df = PyntCloud.from_file(path).points
+                    self.records_3d_semantics_dynamic = df.to_records(
+                        index=False).tobytes()
+                    self.filename_3d_semantics_dynamic = path
 
-            # body
-            row_byte_length = 32
-            msg.height = abs(
-                int(len(self.records_3d_semantics_dynamic) / row_byte_length))
-            msg.width = 1
-            msg.fields = [
-                PointField("x", 0, PointField.FLOAT32, 1),
-                PointField("y", 4, PointField.FLOAT32, 1),
-                PointField("z", 8, PointField.FLOAT32, 1),
-                PointField("red", 12, PointField.UINT8, 1),
-                PointField("green", 13, PointField.UINT8, 1),
-                PointField("blue", 14, PointField.UINT8, 1),
-                PointField("semantic", 15, PointField.INT32, 1),
-                PointField("instance", 19, PointField.INT32, 1),
-                PointField("visible", 23, PointField.UINT8, 1),
-                PointField("timestamp", 24, PointField.INT32, 1),
-                PointField("confidence", 28, PointField.FLOAT32, 1),
-            ]
-            # both True and False worked, so idk
-            msg.is_bigendian = False
-            msg.point_step = row_byte_length  #
-            msg.row_step = row_byte_length  # a row is a point in our case
-            msg.data = self.records_3d_semantics_dynamic
-            msg.is_dense = True
-            self.ros_publisher_3d_semantics_dynamic.publish(msg)
-            durations["3d semantics dynamic"] = time.time() - s
+                msg = PointCloud2()
+                msg.header.stamp = self.timestamps_velodyne.iloc[frame]
+                msg.header.frame_id = "map"  # == "world"
+                msg.header.seq = frame
+
+                # body
+                row_byte_length = 32
+                msg.height = abs(
+                    int(
+                        len(self.records_3d_semantics_dynamic) /
+                        row_byte_length))
+                msg.width = 1
+                msg.fields = [
+                    PointField("x", 0, PointField.FLOAT32, 1),
+                    PointField("y", 4, PointField.FLOAT32, 1),
+                    PointField("z", 8, PointField.FLOAT32, 1),
+                    PointField("red", 12, PointField.UINT8, 1),
+                    PointField("green", 13, PointField.UINT8, 1),
+                    PointField("blue", 14, PointField.UINT8, 1),
+                    PointField("semantic", 15, PointField.INT32, 1),
+                    PointField("instance", 19, PointField.INT32, 1),
+                    PointField("visible", 23, PointField.UINT8, 1),
+                    PointField("timestamp", 24, PointField.INT32, 1),
+                    PointField("confidence", 28, PointField.FLOAT32, 1),
+                ]
+                # both True and False worked, so idk
+                msg.is_bigendian = False
+                msg.point_step = row_byte_length  #
+                msg.row_step = row_byte_length  # a row is a point in our case
+                msg.data = self.records_3d_semantics_dynamic
+                msg.is_dense = True
+                self.ros_publisher_3d_semantics_dynamic.publish(msg)
+                durations["3d semantics dynamic"] = time.time() - s
 
         if self.publish_3d_semantics_static:
             s = time.time()
             # TODO/NOTE ranges overlap a little bit ~15 frames
             # this code publishes the latest possible pointcloud (if there are two)
-            index = self.bounds_3d_sem_static_index[
-                "start_frame"].searchsorted(frame)
-            filename = self.bounds_3d_sem_static_index["filename"].iloc[index -
-                                                                        1]
+            cand = self.bounds_3d_sem_static_index[
+                (self.bounds_3d_sem_static_index["start_frame"] <= frame)
+                & (self.bounds_3d_sem_static_index["end_frame"] > frame)]
+            if not cand.empty:
+                path = os.path.join(self.DATA_DIRECTORY,
+                                    "data_3d_semantics/train",
+                                    self.SEQUENCE_DIRECTORY, "static",
+                                    cand["filename"].iloc[0])
+            else:
+                path = None
 
-            if not self.filename_3d_semantics_static == filename:
-                df = PyntCloud.from_file(
-                    os.path.join(self.DATA_DIRECTORY,
-                                 "data_3d_semantics/train",
-                                 self.SEQUENCE_DIRECTORY, "static",
-                                 filename)).points
-                self.records_3d_semantics_static = df.to_records(
-                    index=False).tobytes()
-                self.filename_3d_semantics_static = filename
+            # check if files for frames exist and is non empty
+            if path is not None and open(path, encoding="ISO-8859-1").read(
+            ).splitlines()[3] != "element vertex 0":
 
-            msg = PointCloud2()
-            msg.header.stamp = self.timestamps_velodyne.iloc[frame]
-            msg.header.frame_id = "map"  # == "world"
-            msg.header.seq = frame
+                if not self.filename_3d_semantics_static == path:
+                    df = PyntCloud.from_file(path).points
+                    self.records_3d_semantics_static = df.to_records(
+                        index=False).tobytes()
+                    self.filename_3d_semantics_static = path
 
-            # body
-            row_byte_length = 28
-            msg.height = abs(
-                int(len(self.records_3d_semantics_static) / row_byte_length))
-            msg.width = 1
-            msg.fields = [
-                PointField("x", 0, PointField.FLOAT32, 1),
-                PointField("y", 4, PointField.FLOAT32, 1),
-                PointField("z", 8, PointField.FLOAT32, 1),
-                PointField("red", 12, PointField.UINT8, 1),
-                PointField("green", 13, PointField.UINT8, 1),
-                PointField("blue", 14, PointField.UINT8, 1),
-                PointField("semantic", 15, PointField.INT32, 1),
-                PointField("instance", 19, PointField.INT32, 1),
-                PointField("visible", 23, PointField.UINT8, 1),
-                PointField("confidence", 24, PointField.FLOAT32, 1),
-            ]
-            # both True and False worked, so idk
-            msg.is_bigendian = False
-            msg.point_step = row_byte_length  #
-            msg.row_step = row_byte_length  # a row is a point in our case
-            msg.data = self.records_3d_semantics_static
-            msg.is_dense = True
-            self.ros_publisher_3d_semantics_static.publish(msg)
-            durations["3d semantics static"] = time.time() - s
+                msg = PointCloud2()
+                msg.header.stamp = self.timestamps_velodyne.iloc[frame]
+                msg.header.frame_id = "map"  # == "world"
+                msg.header.seq = frame
+
+                # body
+                row_byte_length = 28
+                msg.height = abs(
+                    int(
+                        len(self.records_3d_semantics_static) /
+                        row_byte_length))
+                msg.width = 1
+                msg.fields = [
+                    PointField("x", 0, PointField.FLOAT32, 1),
+                    PointField("y", 4, PointField.FLOAT32, 1),
+                    PointField("z", 8, PointField.FLOAT32, 1),
+                    PointField("red", 12, PointField.UINT8, 1),
+                    PointField("green", 13, PointField.UINT8, 1),
+                    PointField("blue", 14, PointField.UINT8, 1),
+                    PointField("semantic", 15, PointField.INT32, 1),
+                    PointField("instance", 19, PointField.INT32, 1),
+                    PointField("visible", 23, PointField.UINT8, 1),
+                    PointField("confidence", 24, PointField.FLOAT32, 1),
+                ]
+                # both True and False worked, so idk
+                msg.is_bigendian = False
+                msg.point_step = row_byte_length  #
+                msg.row_step = row_byte_length  # a row is a point in our case
+                msg.data = self.records_3d_semantics_static
+                msg.is_dense = True
+                self.ros_publisher_3d_semantics_static.publish(msg)
+                durations["3d semantics static"] = time.time() - s
 
         return durations
 
