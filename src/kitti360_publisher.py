@@ -1096,7 +1096,7 @@ class Kitti360DataPublisher:
             rospy.logerr(
                 f"{data_path} does not exist. Disabling velodyne pointclouds.")
             self.publish_velodyne = False
-            return
+            return dict()
 
         pointcloud_bin = np.fromfile(os.path.join(
             data_path,
