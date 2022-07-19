@@ -60,7 +60,7 @@
     <param name="/kitti360_player/pub_3d_semantics_dynamic"           value="$(arg pub_3d_semantics_dynamic)" />
 
     <!-- the actual simulation node -->
-    <node pkg="kitti360_publisher" name="kitti360_publisher" type="kitti360_publisher.py" output="screen"/>
+    <node pkg="kitti360_publisher" name="kitti360_publisher" type="core.py" output="screen"/>
 
     <!-- static transforms -->
     <!-- format: x-offset y-offset z-offset yaw(z) pitch(y) roll(x) (offset in meters, angles in radians)-->

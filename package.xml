@@ -60,7 +60,7 @@
   <exec_depend>rosgraph_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
 
-  <build_depend>message_runtime</build_depend>
+  <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
 
   <depend>dynamic_reconfigure</depend>

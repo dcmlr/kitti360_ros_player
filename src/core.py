@@ -37,9 +37,9 @@ from rosgraph_msgs.msg import Clock
 from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
 import tf2_ros
 from collections import defaultdict
-from fub_semantic_kitty.msg import Kitti360BoundingBox, Kitti360SemanticID, Kitti360SemanticRGB, Kitti360InstanceID, Kitti360Confidence
 import xmltodict
 import itertools
+from kitti360_publisher.msg import Kitti360BoundingBox, Kitti360SemanticID, Kitti360SemanticRGB, Kitti360InstanceID, Kitti360Confidence
 
 
 class Kitti360DataPublisher:
