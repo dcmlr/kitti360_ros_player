@@ -2,7 +2,7 @@
 
 This ROS package takes each sensor from the
 [KITTI-360](http://www.cvlibs.net/datasets/kitti-360/) dataset and publishes it
-in ROS. The simulation can be paused, speed up, run frame by frame.
+in ROS. The simulation can be paused, speed up, and one can step frame by frame.
 
 ## Quick Start
 
