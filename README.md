@@ -20,7 +20,7 @@ start.
 
 **Mandatory KITTI-360 files**
 
-For a given sequence at least the velodyne timestamps and the poses must be
+For a given sequence at least the velodyne timestamps and the poses need to be
 present. Everything else is optional. 
 
      KITTI-360
@@ -161,4 +161,4 @@ email (clemens.mosig@fu-berlin.de) or open a pull request.
 * **Camera Intrinsics**: We are not sure 100% sure whether the camera intrinsics are published correctly (see NOTEs in code).
 * **Static Transforms**: These are published from the launch file (`Kitti360.launch`). We computed the parameters by hand from the sketch on the KITTI360 website. There may be errors.
 * **3D Semantics and Bounding Boxes**: The ranges specified in the filenames overlap in most cases (~15 frames). If we have the choice between two ranges we publish the one with the highest range, i.e., prefer 90-150 over 50-100.
-* **Bounding Boxes**: static and dynamic bounding boxes are handled the same way at the moment. This may need to be changed. The custom bounding box message contains bool that represents whether it is dynamic or static.
+* **Bounding Boxes**: static and dynamic bounding boxes are handled the same way at the moment. This may need to be changed. The custom bounding box message contains a bool that represents whether it is dynamic or static.
