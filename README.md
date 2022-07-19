@@ -70,6 +70,11 @@ The timestamps within the simulation start at 0, which represents the earliest
 timestamp in a respective sequence in the KITTI-360 dataset. The offsets are
 hardcoded in the function `read_timestamps()`.
 
+**Custom Message Types**
+
+We use custom message types for semantics. These can be found in the `/msg`
+folder.
+
 **Performance**
 
 The main bottleneck of simulation is reading the `*.png` files from the hard drive.
