@@ -355,9 +355,7 @@ class Kitti360DataPublisher:
         sim_update_durations = dict()
 
         # need to be handles separately because of higher refresh rate
-        s = time.time()
-        self.handle_sick_points_publishing()
-        sim_update_durations["sick points"] = time.time() - s
+        sim_update_durations |= self.handle_sick_points_publishing()
 
         next_frame = self._get_frame_to_be_published()
         # -1 --> sim time before first frame
@@ -804,8 +802,10 @@ class Kitti360DataPublisher:
         """handles publishing of sick points, which have a higher refresh rate
         (and therefore more frames) to be published"""
 
+        s = time.time()
+
         if not self.publish_sick_points:
-            return
+            return dict()
 
         next_frame = self.timestamps_sick_points.searchsorted(
             self.sim_clock.clock) - 1
@@ -813,7 +813,7 @@ class Kitti360DataPublisher:
         # if we are before first frame or or frame that needs to be published
         # has already been published --> return
         if next_frame == -1 or next_frame == self.last_published_sick_frame:
-            return
+            return dict()
 
         # check if and how many frames we are skipping
         if self.last_published_sick_frame is not None:
@@ -836,7 +836,7 @@ class Kitti360DataPublisher:
         if not os.path.exists(data_path):
             rospy.logerr(f"{data_path} does not exist. Disabling sick points.")
             self.publish_sick_points = False
-            return
+            return dict()
 
         pointcloud_bin = np.fromfile(os.path.join(
             data_path,
@@ -880,6 +880,8 @@ class Kitti360DataPublisher:
 
         # save what has been published
         self.last_published_sick_frame = next_frame
+
+        return dict([("sick", time.time() - s)])
 
     def _publish_bounding_boxes(self, frame):
         if not self.publish_bounding_boxes:
