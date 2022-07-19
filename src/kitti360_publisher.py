@@ -114,11 +114,15 @@ class Kitti360DataPublisher:
     ros_publisher_3d_semantics_static = None
     publish_3d_semantics_static = None
     bounds_3d_sem_static_index = None
+    filename_3d_semantics_static = None
+    records_3d_semantics_static = None
 
     # data_3d_semantics/train/2013_05_28_drive_{seq:0>4}_sync/dynamic/{start_frame:0>10}_{end_frame:0>10}.ply
     ros_publisher_3d_semantics_dynamic = None
     publish_3d_semantics_dynamic = None
     bounds_3d_sem_dynamic_index = None
+    filename_3d_semantics_dynamic = None
+    records_3d_semantics_dynamic = None
 
     # data_3d_semantics/train_full/2013_05_28_drive_{seq:0>4}_sync.xml
     ros_publisher_bounding_boxes = None
@@ -899,9 +903,10 @@ class Kitti360DataPublisher:
 
         # TODO/NOTE ranges overlap a little bit ~15 frames
         # this code publishes the latest possible pointcloud (if there are two)
-        index = self.bounding_box_frame_ranges["start_frame"].searchsorted(frame)
+        index = self.bounding_box_frame_ranges["start_frame"].searchsorted(
+            frame)
         bb_indices = self.bounding_box_frame_ranges["indices"].iloc[index - 1]
-        
+
         for bb_index in bb_indices:
             bb_data = self.bounding_box_data[bb_index]
 
@@ -1263,11 +1268,15 @@ class Kitti360DataPublisher:
             filename = self.bounds_3d_sem_dynamic_index["filename"].iloc[index
                                                                          - 1]
 
-            df = PyntCloud.from_file(
-                os.path.join(self.DATA_DIRECTORY, "data_3d_semantics/train",
-                             self.SEQUENCE_DIRECTORY, "dynamic",
-                             filename)).points
-            rec = df.to_records(index=False).tobytes()
+            if not self.filename_3d_semantics_dynamic == filename:
+                df = PyntCloud.from_file(
+                    os.path.join(self.DATA_DIRECTORY,
+                                 "data_3d_semantics/train",
+                                 self.SEQUENCE_DIRECTORY, "dynamic",
+                                 filename)).points
+                self.records_3d_semantics_dynamic = df.to_records(
+                    index=False).tobytes()
+                self.filename_3d_semantics_dynamic = filename
 
             msg = PointCloud2()
             msg.header.stamp = self.timestamps_velodyne.iloc[frame]
@@ -1276,7 +1285,8 @@ class Kitti360DataPublisher:
 
             # body
             row_byte_length = 32
-            msg.height = abs(int(len(rec) / row_byte_length))
+            msg.height = abs(
+                int(len(self.records_3d_semantics_dynamic) / row_byte_length))
             msg.width = 1
             msg.fields = [
                 PointField("x", 0, PointField.FLOAT32, 1),
@@ -1295,7 +1305,7 @@ class Kitti360DataPublisher:
             msg.is_bigendian = False
             msg.point_step = row_byte_length  #
             msg.row_step = row_byte_length  # a row is a point in our case
-            msg.data = rec
+            msg.data = self.records_3d_semantics_dynamic
             msg.is_dense = True
             self.ros_publisher_3d_semantics_dynamic.publish(msg)
             durations["3d semantics dynamic"] = time.time() - s
@@ -1309,11 +1319,15 @@ class Kitti360DataPublisher:
             filename = self.bounds_3d_sem_static_index["filename"].iloc[index -
                                                                         1]
 
-            df = PyntCloud.from_file(
-                os.path.join(self.DATA_DIRECTORY, "data_3d_semantics/train",
-                             self.SEQUENCE_DIRECTORY, "static",
-                             filename)).points
-            rec = df.to_records(index=False).tobytes()
+            if not self.filename_3d_semantics_static == filename:
+                df = PyntCloud.from_file(
+                    os.path.join(self.DATA_DIRECTORY,
+                                 "data_3d_semantics/train",
+                                 self.SEQUENCE_DIRECTORY, "static",
+                                 filename)).points
+                self.records_3d_semantics_static = df.to_records(
+                    index=False).tobytes()
+                self.filename_3d_semantics_static = filename
 
             msg = PointCloud2()
             msg.header.stamp = self.timestamps_velodyne.iloc[frame]
@@ -1322,7 +1336,8 @@ class Kitti360DataPublisher:
 
             # body
             row_byte_length = 28
-            msg.height = abs(int(len(rec) / row_byte_length))
+            msg.height = abs(
+                int(len(self.records_3d_semantics_static) / row_byte_length))
             msg.width = 1
             msg.fields = [
                 PointField("x", 0, PointField.FLOAT32, 1),
@@ -1340,7 +1355,7 @@ class Kitti360DataPublisher:
             msg.is_bigendian = False
             msg.point_step = row_byte_length  #
             msg.row_step = row_byte_length  # a row is a point in our case
-            msg.data = rec
+            msg.data = self.records_3d_semantics_static
             msg.is_dense = True
             self.ros_publisher_3d_semantics_static.publish(msg)
             durations["3d semantics static"] = time.time() - s
