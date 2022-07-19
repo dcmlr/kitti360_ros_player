@@ -198,27 +198,33 @@ class Kitti360DataPublisher:
 
         # init ros node
         rospy.init_node(self.NODENAME)
-        rospy.loginfo(f"node {self.NODENAME} initialized")
+        padding = 17
+        rospy.loginfo(
+            "-------------------------------------------------------")
+        rospy.loginfo(f"{'node':<{padding}} {self.NODENAME}")
 
         # ------------------------------------------
         # get configuration parameters
         self.SIM_START = rospy.get_param("/kitti360_player/start", 0)
-        rospy.loginfo(f"start timestamp in simulation: {self.SIM_START}")
+        rospy.loginfo(f"{'start:':<{padding}} {self.SIM_START}")
         self.SIM_END = rospy.get_param("/kitti360_player/end", 99999999)
-        rospy.loginfo(f"end timestamp in simulation: {self.SIM_END}")
-        # TODO implement MULTIPLIER
+        rospy.loginfo(f"{'end:':<{padding}} {self.SIM_END}")
         self.sim_playback_speed = rospy.get_param("/kitti360_player/rate", 1)
         rospy.loginfo(
-            f"simulation speed multiplier: {self.sim_playback_speed}")
+            f"{'speed multiplier:':<{padding}} {self.sim_playback_speed}")
 
         self.SEQUENCE = rospy.get_param("/kitti360_player/sequence", 0)
         if not (self.SEQUENCE >= 0 and self.SEQUENCE <= 10):
             rospy.logerr(
-                "Sequence ({self.SEQUENCE=}) needs to be 0 <= x <= 10.")
+                "sequence ({self.SEQUENCE=}) needs to be 0 <= x <= 10. FATAL")
+            rospy.signal_shutdown()
+            exit()
         else:
             self.SEQUENCE = '{:04d}'.format(self.SEQUENCE)
             self.SEQUENCE_DIRECTORY = f"2013_05_28_drive_{self.SEQUENCE}_sync"
-            rospy.loginfo(f"Using sequence: {self.SEQUENCE}")
+            rospy.loginfo(f"{'sequence:':<{padding}} {self.SEQUENCE}")
+            rospy.loginfo(
+                "-------------------------------------------------------")
 
         self.DATA_DIRECTORY = rospy.get_param("kitti360_player/directory", "")
         if self.DATA_DIRECTORY == "":
@@ -363,10 +369,11 @@ class Kitti360DataPublisher:
         if next_frame != -1 and next_frame != self.last_published_frame:
             skipped = next_frame - self.last_published_frame - 1
             logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
+            skipped_string = f"(skipping {skipped})"
             logfunc(
                 f"advancing to next VELODYNE synced frame" +
-                f"(skipping {skipped}):" +
-                f" {self._convert_frame_int_to_string(self.last_published_frame)}"
+                f" {skipped_string:<14}" +
+                f"{self._convert_frame_int_to_string(self.last_published_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
                 f"({self.sim_clock.clock.to_sec():.5f}s)")
 
@@ -387,6 +394,7 @@ class Kitti360DataPublisher:
                     rospy.loginfo(
                         f"{name:<{padding}} = {duration:.3f}s ({((duration/total)*100):.1f}%)"
                     )
+                rospy.loginfo(f"{'':<{padding}} ----------------")
                 rospy.loginfo(f"{'total':<{padding}} = {total:.3f}s")
                 rospy.loginfo(
                     "-------------------------------------------------------")
@@ -819,10 +827,11 @@ class Kitti360DataPublisher:
         if self.last_published_sick_frame is not None:
             skipped = next_frame - self.last_published_sick_frame - 1
             logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
+            skipped_string = f"(skipping {skipped})"
             logfunc(
                 f"advancing to next SICK points frame" +
-                f"(skipping {skipped}):" +
-                f"     {self._convert_frame_int_to_string(self.last_published_sick_frame)}"
+                f" {skipped_string:<18}" +
+                f"{self._convert_frame_int_to_string(self.last_published_sick_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
                 f"({self.sim_clock.clock.to_sec():.5f}s)")
 
@@ -1339,37 +1348,37 @@ class Kitti360DataPublisher:
     # ------------------------------------------
     # COMMAND LINE INTERFACE
     def print_help(self):
-        print(
+        rospy.loginfo(
             "+--------------------------------------------------------------------+"
         )
-        print(
+        rospy.loginfo(
             "| key mapping for simulation control via terminal                    |"
         )
-        print(
+        rospy.loginfo(
             "|    *       : print this                                            |"
         )
-        print(
+        rospy.loginfo(
             "|    s       : step to next frame by VELODYNE (skips 3 SICK frames)  |"
         )
-        print(
+        rospy.loginfo(
             "|    d       : step to next frame by SICK                            |"
         )
-        print(
+        rospy.loginfo(
             "|    <space> : pause/unpause simulation                              |"
         )
-        print(
+        rospy.loginfo(
             "|    k       : increase playback speed factor by 0.1                 |"
         )
-        print(
+        rospy.loginfo(
             "|    j       : decrease playback speed factor by 0.1                 |"
         )
-        print(
+        rospy.loginfo(
             "|    [0-9]   : seek to x0% of simulation (e.g. 6 -> 60%)             |"
         )
-        print(
+        rospy.loginfo(
             "|    b       : print duration of each publishing step                |"
         )
-        print(
+        rospy.loginfo(
             "+--------------------------------------------------------------------+"
         )
 
