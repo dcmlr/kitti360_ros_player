@@ -897,15 +897,11 @@ class Kitti360DataPublisher:
         # for benchmarking
         s = time.time()
 
-        # NOTE I don't actually know whether this should be <= or < (or >/>=).
-        # Could not find it in the docs. Going for >= and <, as this is the
-        # most common way I think
-        bb_indices = set(
-            itertools.chain.from_iterable(self.bounding_box_frame_ranges[
-                (frame >= self.bounding_box_frame_ranges["start_frame"])
-                & (frame < self.bounding_box_frame_ranges["end_frame"])]
-                                          ["indices"]))
-
+        # TODO/NOTE ranges overlap a little bit ~15 frames
+        # this code publishes the latest possible pointcloud (if there are two)
+        index = self.bounding_box_frame_ranges["start_frame"].searchsorted(frame)
+        bb_indices = self.bounding_box_frame_ranges["indices"].iloc[index - 1]
+        
         for bb_index in bb_indices:
             bb_data = self.bounding_box_data[bb_index]
 

@@ -155,5 +155,5 @@ email (clemens.mosig@fu-berlin.de) or open a pull request.
 * **OXTS measurements**: We are not yet publishing these.
 * **Camera Intrinsics**: We are not sure 100% sure whether the camera intrinsics are published correctly (see NOTEs in code).
 * **Static Transforms**: These are published from the launch file (`Kitti360.launch`). We computed the parameters by hand from the sketch on the KITTI360 website. There may be errors.
-* **Bounding Boxes Ranges**: The KITTI-360 website does not state whether the specified `start_frame` and `end_frame` bounds are inclusive or not. We include the `start_frame` and exclude the `end_frame`.
-* **3D Semantics**: The ranges specified in the filenames overlap in most cases (~15 frames). If we have the choice between two ranges we publish the one with the highest range, i.e., prefer 90-150 over 50-100.
+* **3D Semantics and Bounding Boxes**: The ranges specified in the filenames overlap in most cases (~15 frames). If we have the choice between two ranges we publish the one with the highest range, i.e., prefer 90-150 over 50-100.
+* **Bounding Boxes**: static and dynamic bounding boxes are handled the same way at the moment. This may need to be changed. The custom bounding box message contains bool that represents whether it is dynamic or static.
