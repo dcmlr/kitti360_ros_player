@@ -688,7 +688,7 @@ class Kitti360DataPublisher:
                              "velodyne_points/timestamps.txt"))
         except FileNotFoundError:
             rospy.logerr(
-                "timestamps for velodyne not found. FATAL --> can't continue")
+                "timestamps for velodyne not found. FATAL")
             # TODO does it work like this?
             rospy.signal_shutdown(
                 "cannot find velodyne timestamps --> need for execution")
