@@ -217,7 +217,7 @@ class Kitti360DataPublisher:
         if not (self.SEQUENCE >= 0 and self.SEQUENCE <= 10):
             rospy.logerr(
                 "sequence ({self.SEQUENCE=}) needs to be 0 <= x <= 10. FATAL")
-            rospy.signal_shutdown()
+            rospy.signal_shutdown("sequence number is invalid")
             exit()
         else:
             self.SEQUENCE = '{:04d}'.format(self.SEQUENCE)
@@ -227,11 +227,10 @@ class Kitti360DataPublisher:
                 "-------------------------------------------------------")
 
         self.DATA_DIRECTORY = rospy.get_param("kitti360_player/directory", "")
-        if self.DATA_DIRECTORY == "":
+        if self.DATA_DIRECTORY == "" or not os.path.exists(self.DATA_DIRECTORY):
             rospy.logerr(
-                f"Either an empty string or no data directory was provided: {self.DATA_DIRECTORY} \n Exiting..."
+                f"Directory does not exist: {self.DATA_DIRECTORY}. FATAL"
             )
-            # TODO does exit work here?
             rospy.signal_shutdown("provided data directory is invalid")
             exit()
 
