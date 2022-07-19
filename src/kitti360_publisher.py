@@ -56,85 +56,82 @@ class Kitti360DataPublisher:
     # - publish_* is always a bool defining whether a specific resource is
     #   supposed to be loaded/published (automatically disabled if resource not
     #   available)
-    # - pub_* is the respective publisher
+    # - ros_publisher_* is the respective publisher
 
     # clock
-    pub_clock = None
-
-    # rviz player
-    pub_player_status = None
+    ros_publisher_clock = None
 
     # data_2d_raw/2013_05_28_drive_{seq:0>4}_sync/image_{00|01}/data_rect/{frame:0>10}.png
-    pub_2d_raw_perspective_rectified_left = None
+    ros_publisher_2d_raw_perspective_rectified_left = None
     publish_perspective_rectified_left = None
-    pub_2d_raw_perspective_rectified_right = None
+    ros_publisher_2d_raw_perspective_rectified_right = None
     publish_perspective_rectified_right = None
 
     # data_2d_raw/2013_05_28_drive_{seq:0>4}_sync/image_{00|01}/data_rgb/{frame:0>10}.png
-    pub_2d_raw_perspective_unrectified_left = None
+    ros_publisher_2d_raw_perspective_unrectified_left = None
     publish_perspective_unrectified_image_left = None
-    pub_2d_raw_perspective_unrectified_right = None
+    ros_publisher_2d_raw_perspective_unrectified_right = None
     publish_perspective_unrectified_image_right = None
 
     # data_2d_raw/2013_05_28_drive_{seq:0>4}_sync/image_{02|03}}/data_rgb/{frame:0>10}.png
-    pub_2d_raw_fisheye_left = None
+    ros_publisher_2d_raw_fisheye_left = None
     publish_fisheye_left = None
-    pub_2d_raw_fisheye_right = None
+    ros_publisher_2d_raw_fisheye_right = None
     publish_fisheye_right = None
 
     # data_2d_semantics/train/2013_05_28_drive_{seq:0>4}_sync/image_{00|01}/semantic/{frame:0>10}.png
-    pub_2d_semantics_semantic_left = None
+    ros_publisher_2d_semantics_semantic_left = None
     publish_semantics_semantic_left = None
-    pub_2d_semantics_semantic_right = None
+    ros_publisher_2d_semantics_semantic_right = None
     publish_semantics_semantic_right = None
 
     # data_2d_semantics/train/2013_05_28_drive_{seq:0>4}_sync/image_{00|01}/semantic_rgb/{frame:0>10}.png
-    pub_2d_semantics_semantic_rgb_left = None
+    ros_publisher_2d_semantics_semantic_rgb_left = None
     publish_semantics_semantic_rgb_left = None
-    pub_2d_semantics_semantic_rgb_right = None
+    ros_publisher_2d_semantics_semantic_rgb_right = None
     publish_semantics_semantic_rgb_right = None
 
     # data_2d_semantics/train/2013_05_28_drive_{seq:0>4}_sync/image_{00|01}/instance/{frame:0>10}.png
-    pub_2d_semantics_instance_left = None
+    ros_publisher_2d_semantics_instance_left = None
     publish_semantics_instance_left = None
-    pub_2d_semantics_instance_right = None
+    ros_publisher_2d_semantics_instance_right = None
     publish_semantics_instance_right = None
 
     # data_2d_semantics/train/2013_05_28_drive_{seq:0>4}_sync/image_{00|01}/confidence/{frame:0>10}.png
-    pub_2d_semantics_confidence_left = None
+    ros_publisher_2d_semantics_confidence_left = None
     publish_semantics_confidence_left = None
-    pub_2d_semantics_confidence_right = None
+    ros_publisher_2d_semantics_confidence_right = None
     publish_semantics_confidence_right = None
 
     # data_3d_raw/2013_05_28_drive_{seq:0>4}_sync/velodyne_points/data/{frame:0>10}.bin
-    pub_3d_raw_velodyne = None
+    ros_publisher_3d_raw_velodyne = None
     publish_velodyne = None
     # data_3d_raw/2013_05_28_drive_{seq:0>4}_sync/sick_points/data/{frame:0>10}.bin
-    pub_3d_raw_sick_points = None
+    ros_publisher_3d_raw_sick_points = None
     publish_sick_points = None
 
     # data_3d_semantics/train/2013_05_28_drive_{seq:0>4}_sync/static/{start_frame:0>10}_{end_frame:0>10}.ply
-    pub_3d_semantics_static = None
+    ros_publisher_3d_semantics_static = None
     publish_3d_semantics_static = None
     bounds_3d_sem_static_index = None
 
     # data_3d_semantics/train/2013_05_28_drive_{seq:0>4}_sync/dynamic/{start_frame:0>10}_{end_frame:0>10}.ply
-    pub_3d_semantics_dynamic = None
+    ros_publisher_3d_semantics_dynamic = None
     publish_3d_semantics_dynamic = None
     bounds_3d_sem_dynamic_index = None
 
     # data_3d_semantics/train_full/2013_05_28_drive_{seq:0>4}_sync.xml
-    pub_bounding_boxes = None
+    ros_publisher_bounding_boxes = None
     publish_bounding_boxes = None
     # filled in self.read_bounding_boxes
     bounding_box_data = None
     bounding_box_frame_ranges = None
 
     # camera intrinsics
-    pub_camera_intrinsics_unrectified_unrectified_left = None
-    pub_camera_intrinsics_unrectified_unrectified_right = None
-    pub_camera_intrinsics_fisheye_left = None
-    pub_camera_intrinsics_fisheye_right = None
+    ros_publisher_camera_intrinsics_unrectified_unrectified_left = None
+    ros_publisher_camera_intrinsics_unrectified_unrectified_right = None
+    ros_publisher_camera_intrinsics_fisheye_left = None
+    ros_publisher_camera_intrinsics_fisheye_right = None
     publish_camera_intrinsics = True
 
     # ------------------------------------------
@@ -227,10 +224,10 @@ class Kitti360DataPublisher:
                 "-------------------------------------------------------")
 
         self.DATA_DIRECTORY = rospy.get_param("kitti360_player/directory", "")
-        if self.DATA_DIRECTORY == "" or not os.path.exists(self.DATA_DIRECTORY):
+        if self.DATA_DIRECTORY == "" or not os.path.exists(
+                self.DATA_DIRECTORY):
             rospy.logerr(
-                f"Directory does not exist: {self.DATA_DIRECTORY}. FATAL"
-            )
+                f"Directory does not exist: {self.DATA_DIRECTORY}. FATAL")
             rospy.signal_shutdown("provided data directory is invalid")
             exit()
 
@@ -340,7 +337,7 @@ class Kitti360DataPublisher:
                 self._simulation_update()
 
             # update ROS time and player
-            self.pub_clock.publish(self.sim_clock)
+            self.ros_publisher_clock.publish(self.sim_clock)
 
             # compute how long we need to sleep to match DESIRED_RATE
             loop_duration = time.time() - system_time_loop_start
@@ -439,7 +436,8 @@ class Kitti360DataPublisher:
                        [0.000000, 552.554261, 238.769549, 0.000000],
                        [0.000000, 0.000000, 1.000000, 0.000000]]
 
-        self.pub_camera_intrinsics_unrectified_left.publish(ci_msg_00)
+        self.ros_publisher_camera_intrinsics_unrectified_left.publish(
+            ci_msg_00)
 
         # CAM 01 (Pespective Right)
         ci_msg_01 = CameraInfo()
@@ -467,7 +465,8 @@ class Kitti360DataPublisher:
                        [0.000000, 552.554261, 238.769549, 0.000000],
                        [0.000000, 0.000000, 1.000000, 0.000000]]
 
-        self.pub_camera_intrinsics_unrectified_right.publish(ci_msg_01)
+        self.ros_publisher_camera_intrinsics_unrectified_right.publish(
+            ci_msg_01)
 
         # FISHEYE
         # NOTE assumed that:
@@ -496,7 +495,7 @@ class Kitti360DataPublisher:
             4.2223943394772046e-04, 4.2462134260997584e-04, 0
         ]
 
-        self.pub_camera_intrinsics_fisheye_left.publish(ci_msg_02)
+        self.ros_publisher_camera_intrinsics_fisheye_left.publish(ci_msg_02)
 
         # CAM 03 (Fisheye Right)
         ci_msg_03 = CameraInfo()
@@ -519,106 +518,107 @@ class Kitti360DataPublisher:
             1.3477698472982495e-03, -7.0340482615055284e-04, 0
         ]
 
-        self.pub_camera_intrinsics_fisheye_right.publish(ci_msg_03)
+        self.ros_publisher_camera_intrinsics_fisheye_right.publish(ci_msg_03)
 
     def init_publishers(self):
-        self.pub_clock = rospy.Publisher("clock", Clock, queue_size=10)
+        self.ros_publisher_clock = rospy.Publisher("clock",
+                                                   Clock,
+                                                   queue_size=10)
         if self.publish_velodyne:
-            self.pub_3d_raw_velodyne = rospy.Publisher("kitti360/cloud",
-                                                       PointCloud2,
-                                                       queue_size=1)
+            self.ros_publisher_3d_raw_velodyne = rospy.Publisher(
+                "kitti360/cloud", PointCloud2, queue_size=1)
         if self.publish_sick_points:
-            self.pub_3d_raw_sick_points = rospy.Publisher(
+            self.ros_publisher_3d_raw_sick_points = rospy.Publisher(
                 "kitti360/sick_points", PointCloud2, queue_size=1)
         if self.publish_perspective_rectified_left:
-            self.pub_2d_raw_perspective_rectified_left = rospy.Publisher(
+            self.ros_publisher_2d_raw_perspective_rectified_left = rospy.Publisher(
                 "kitti360/2d/perspective/rectified_left", Image, queue_size=1)
         if self.publish_perspective_rectified_right:
-            self.pub_2d_raw_perspective_rectified_right = rospy.Publisher(
+            self.ros_publisher_2d_raw_perspective_rectified_right = rospy.Publisher(
                 "kitti360/2d/perspective/rectified_right", Image, queue_size=1)
         if self.publish_perspective_unrectified_left:
-            self.pub_2d_raw_perspective_unrectified_left = rospy.Publisher(
+            self.ros_publisher_2d_raw_perspective_unrectified_left = rospy.Publisher(
                 "kitti360/2d/perspective/unrectified_left",
                 Image,
                 queue_size=1)
         if self.publish_perspective_unrectified_right:
-            self.pub_2d_raw_perspective_unrectified_right = rospy.Publisher(
+            self.ros_publisher_2d_raw_perspective_unrectified_right = rospy.Publisher(
                 "kitti360/2d/perspective/unrectified_right",
                 Image,
                 queue_size=1)
         if self.publish_fisheye_left:
-            self.pub_2d_raw_fisheye_left = rospy.Publisher(
+            self.ros_publisher_2d_raw_fisheye_left = rospy.Publisher(
                 "kitti360/2d/fisheye/left", Image, queue_size=1)
         if self.publish_fisheye_right:
-            self.pub_2d_raw_fisheye_right = rospy.Publisher(
+            self.ros_publisher_2d_raw_fisheye_right = rospy.Publisher(
                 "kitti360/2d/fisheye/right", Image, queue_size=1)
         if self.publish_camera_intrinsics:
-            self.pub_camera_intrinsics_unrectified_left = rospy.Publisher(
+            self.ros_publisher_camera_intrinsics_unrectified_left = rospy.Publisher(
                 "kitti360/2d/perspective/unrectified_left_camera_info",
                 CameraInfo,
                 queue_size=1)
-            self.pub_camera_intrinsics_unrectified_right = rospy.Publisher(
+            self.ros_publisher_camera_intrinsics_unrectified_right = rospy.Publisher(
                 "kitti360/2d/perspective/unrectified_right_camera_info",
                 CameraInfo,
                 queue_size=1)
-            self.pub_camera_intrinsics_fisheye_left = rospy.Publisher(
+            self.ros_publisher_camera_intrinsics_fisheye_left = rospy.Publisher(
                 "kitti360/2d/fisheye/unrectified_left_camera_info",
                 CameraInfo,
                 queue_size=1)
-            self.pub_camera_intrinsics_fisheye_right = rospy.Publisher(
+            self.ros_publisher_camera_intrinsics_fisheye_right = rospy.Publisher(
                 "kitti360/2d/fisheye/unrectified_right_camera_info",
                 CameraInfo,
                 queue_size=1)
         if self.publish_bounding_boxes:
-            self.pub_bounding_boxes = rospy.Publisher(
+            self.ros_publisher_bounding_boxes = rospy.Publisher(
                 "kitti360/3d/bounding_boxes",
                 Kitti360BoundingBox,
                 queue_size=1)
         if self.publish_semantics_semantic_left:
-            self.pub_2d_semantics_semantic_left = rospy.Publisher(
+            self.ros_publisher_2d_semantics_semantic_left = rospy.Publisher(
                 "kitti360/2d/semantics/semantic_left",
                 Kitti360SemanticID,
                 queue_size=1)
         if self.publish_semantics_semantic_right:
-            self.pub_2d_semantics_semantic_right = rospy.Publisher(
+            self.ros_publisher_2d_semantics_semantic_right = rospy.Publisher(
                 "kitti360/2d/semantics/semantic_right",
                 Kitti360SemanticID,
                 queue_size=1)
         if self.publish_semantics_semantic_rgb_left:
-            self.pub_2d_semantics_semantic_rgb_left = rospy.Publisher(
+            self.ros_publisher_2d_semantics_semantic_rgb_left = rospy.Publisher(
                 "kitti360/2d/semantics/semantic_rgb_left",
                 Kitti360SemanticRGB,
                 queue_size=1)
         if self.publish_semantics_semantic_rgb_right:
-            self.pub_2d_semantics_semantic_rgb_right = rospy.Publisher(
+            self.ros_publisher_2d_semantics_semantic_rgb_right = rospy.Publisher(
                 "kitti360/2d/semantics/semantic_rgb_right",
                 Kitti360SemanticRGB,
                 queue_size=1)
         if self.publish_semantics_instance_left:
-            self.pub_2d_semantics_instance_left = rospy.Publisher(
+            self.ros_publisher_2d_semantics_instance_left = rospy.Publisher(
                 "kitti360/2d/semantics/instance_left",
                 Kitti360InstanceID,
                 queue_size=1)
         if self.publish_semantics_instance_right:
-            self.pub_2d_semantics_instance_right = rospy.Publisher(
+            self.ros_publisher_2d_semantics_instance_right = rospy.Publisher(
                 "kitti360/2d/semantics/instance_right",
                 Kitti360InstanceID,
                 queue_size=1)
         if self.publish_semantics_confidence_left:
-            self.pub_2d_semantics_confidence_left = rospy.Publisher(
+            self.ros_publisher_2d_semantics_confidence_left = rospy.Publisher(
                 "kitti360/2d/semantics/confidence_left",
                 Kitti360Confidence,
                 queue_size=1)
         if self.publish_semantics_confidence_right:
-            self.pub_2d_semantics_confidence_right = rospy.Publisher(
+            self.ros_publisher_2d_semantics_confidence_right = rospy.Publisher(
                 "kitti360/2d/semantics/confidence_right",
                 Kitti360Confidence,
                 queue_size=1)
         if self.publish_3d_semantics_static:
-            self.pub_3d_semantics_static = rospy.Publisher(
+            self.ros_publisher_3d_semantics_static = rospy.Publisher(
                 "kitti360/3d/semantics/static", PointCloud2, queue_size=1)
         if self.publish_3d_semantics_dynamic:
-            self.pub_3d_semantics_dynamic = rospy.Publisher(
+            self.ros_publisher_3d_semantics_dynamic = rospy.Publisher(
                 "kitti360/3d/semantics/dynamic", PointCloud2, queue_size=1)
 
     def read_bounding_boxes(self):
@@ -686,8 +686,7 @@ class Kitti360DataPublisher:
                              self.SEQUENCE_DIRECTORY,
                              "velodyne_points/timestamps.txt"))
         except FileNotFoundError:
-            rospy.logerr(
-                "timestamps for velodyne not found. FATAL")
+            rospy.logerr("timestamps for velodyne not found. FATAL")
             # TODO does it work like this?
             rospy.signal_shutdown(
                 "cannot find velodyne timestamps --> need for execution")
@@ -883,7 +882,7 @@ class Kitti360DataPublisher:
         cloud_msg.is_dense = True
 
         # publish
-        self.pub_3d_raw_sick_points.publish(cloud_msg)
+        self.ros_publisher_3d_raw_sick_points.publish(cloud_msg)
         # --------------------------------------------------
 
         # save what has been published
@@ -934,7 +933,7 @@ class Kitti360DataPublisher:
             bb.dynamicSeq = abs(int(bb_data["dynamicSeq"]))
             bb.dynamicIdx = abs(int(bb_data["dynamicIdx"]))
 
-            self.pub_bounding_boxes.publish(bb)
+            self.ros_publisher_bounding_boxes.publish(bb)
 
         return dict([("bounding boxes", time.time() - s)])
 
@@ -984,7 +983,8 @@ class Kitti360DataPublisher:
                                        frame,
                                        width=1408,
                                        height=376)) is not None:
-                self.pub_2d_raw_perspective_rectified_left.publish(msg)
+                self.ros_publisher_2d_raw_perspective_rectified_left.publish(
+                    msg)
                 durations["image_00_data_rect"] = time.time() - s
             elif self.publish_perspective_rectified_left:
                 self.publish_perspective_rectified_left = False
@@ -1001,7 +1001,8 @@ class Kitti360DataPublisher:
                                        frame,
                                        width=1408,
                                        height=376)) is not None:
-                self.pub_2d_raw_perspective_rectified_right.publish(msg)
+                self.ros_publisher_2d_raw_perspective_rectified_right.publish(
+                    msg)
                 durations["image_01_data_rect"] = time.time() - s
             elif self.publish_perspective_rectified_right:
                 self.publish_perspective_rectified_right = False
@@ -1018,7 +1019,8 @@ class Kitti360DataPublisher:
                                        frame,
                                        width=1392,
                                        height=512)) is not None:
-                self.pub_2d_raw_perspective_unrectified_left.publish(msg)
+                self.ros_publisher_2d_raw_perspective_unrectified_left.publish(
+                    msg)
                 durations["image_00_data_rgb"] = time.time() - s
             elif self.publish_perspective_unrectified_left:
                 self.publish_perspective_unrectified_left = False
@@ -1035,7 +1037,8 @@ class Kitti360DataPublisher:
                                        frame,
                                        width=1392,
                                        height=512)) is not None:
-                self.pub_2d_raw_perspective_unrectified_right.publish(msg)
+                self.ros_publisher_2d_raw_perspective_unrectified_right.publish(
+                    msg)
                 durations["image_01_data_rgb"] = time.time() - s
             elif self.publish_perspective_unrectified_right:
                 self.publish_perspective_unrectified_right = False
@@ -1051,7 +1054,7 @@ class Kitti360DataPublisher:
                                           frame,
                                           width=1400,
                                           height=1400)) is not None:
-                self.pub_2d_raw_fisheye_left.publish(msg)
+                self.ros_publisher_2d_raw_fisheye_left.publish(msg)
                 durations["image_02_data_rgb"] = time.time() - s
             elif self.publish_fisheye_left:
                 self.publish_fisheye_left = False
@@ -1067,7 +1070,7 @@ class Kitti360DataPublisher:
                                           frame,
                                           width=1400,
                                           height=1400)) is not None:
-                self.pub_2d_raw_fisheye_right.publish(msg)
+                self.ros_publisher_2d_raw_fisheye_right.publish(msg)
                 durations["image_03_data_rgb"] = time.time() - s
             elif self.publish_fisheye_right:
                 self.publish_fisheye_right = False
@@ -1128,7 +1131,7 @@ class Kitti360DataPublisher:
         cloud_msg.is_dense = True
 
         # publish
-        self.pub_3d_raw_velodyne.publish(cloud_msg)
+        self.ros_publisher_3d_raw_velodyne.publish(cloud_msg)
 
         return dict([("velodyne", time.time() - s)])
 
@@ -1209,35 +1212,39 @@ class Kitti360DataPublisher:
 
         self.publish_semantics_semantic_left = _pub(
             "image_00/semantic/", self.publish_semantics_semantic_left,
-            Kitti360SemanticID, self.pub_2d_semantics_semantic_left,
+            Kitti360SemanticID, self.ros_publisher_2d_semantics_semantic_left,
             "2d semanticID left")
         self.publish_semantics_semantic_right = _pub(
             "image_01/semantic/", self.publish_semantics_semantic_right,
-            Kitti360SemanticID, self.pub_2d_semantics_semantic_right,
+            Kitti360SemanticID, self.ros_publisher_2d_semantics_semantic_right,
             "2d semanticID right")
         self.publish_semantics_semantic_rgb_left = _pub(
             "image_00/semantic_rgb/", self.publish_semantics_semantic_rgb_left,
-            Kitti360SemanticRGB, self.pub_2d_semantics_semantic_rgb_left,
+            Kitti360SemanticRGB,
+            self.ros_publisher_2d_semantics_semantic_rgb_left,
             "2d semantic rgb left")
         self.publish_semantics_semantic_rgb_right = _pub(
             "image_01/semantic_rgb/",
             self.publish_semantics_semantic_rgb_right, Kitti360SemanticRGB,
-            self.pub_2d_semantics_semantic_rgb_right, "2d semantic rgb right")
+            self.ros_publisher_2d_semantics_semantic_rgb_right,
+            "2d semantic rgb right")
         self.publish_semantics_instance_left = _pub(
             "image_00/instance/", self.publish_semantics_instance_left,
-            Kitti360InstanceID, self.pub_2d_semantics_instance_left,
+            Kitti360InstanceID, self.ros_publisher_2d_semantics_instance_left,
             "2d instanceID left")
         self.publish_semantics_instance_right = _pub(
             "image_01/instance/", self.publish_semantics_instance_right,
-            Kitti360InstanceID, self.pub_2d_semantics_instance_right,
+            Kitti360InstanceID, self.ros_publisher_2d_semantics_instance_right,
             "2d instanceID right")
         self.publish_semantics_confidence_left = _pub(
             "image_00/confidence/", self.publish_semantics_confidence_left,
-            Kitti360Confidence, self.pub_2d_semantics_confidence_left,
+            Kitti360Confidence,
+            self.ros_publisher_2d_semantics_confidence_left,
             "2d confidence left")
         self.publish_semantics_confidence_right = _pub(
             "image_01/confidence/", self.publish_semantics_confidence_right,
-            Kitti360Confidence, self.pub_2d_semantics_confidence_right,
+            Kitti360Confidence,
+            self.ros_publisher_2d_semantics_confidence_right,
             "2d confidence right")
 
         return durations
@@ -1294,7 +1301,7 @@ class Kitti360DataPublisher:
             msg.row_step = row_byte_length  # a row is a point in our case
             msg.data = rec
             msg.is_dense = True
-            self.pub_3d_semantics_dynamic.publish(msg)
+            self.ros_publisher_3d_semantics_dynamic.publish(msg)
             durations["3d semantics dynamic"] = time.time() - s
 
         if self.publish_3d_semantics_static:
@@ -1339,7 +1346,7 @@ class Kitti360DataPublisher:
             msg.row_step = row_byte_length  # a row is a point in our case
             msg.data = rec
             msg.is_dense = True
-            self.pub_3d_semantics_static.publish(msg)
+            self.ros_publisher_3d_semantics_static.publish(msg)
             durations["3d semantics static"] = time.time() - s
 
         return durations
