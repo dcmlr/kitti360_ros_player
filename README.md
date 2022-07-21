@@ -143,7 +143,7 @@ itself automatically and print an error message in the logs.
 
 **Python requirements**
 
-Python >=3.9 and package dependencies are listed in `requirements.txt`.
+Python >=3.8 and package dependencies are listed in `requirements.txt`.
 
 ## Contribution
 
