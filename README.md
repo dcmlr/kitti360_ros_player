@@ -8,6 +8,9 @@ If you have comments or questions please contact clemens.mosig@fu-berlin.de.
 
 ## Quick Start
 
+**Installation:** Install python dependencies with `pip install -r
+requirements.txt` and run `catkin_make` from the root of your catkin workspace.
+
 **Launch Simulation:** To start the simulation you use `roslaunch` and specify the launch file
 `launch/Kitti360.launch` as well as the directory where the KITTI-360 are
 located.
