@@ -196,12 +196,17 @@ class Kitti360DataPublisher:
     # ------------------------------------------
 
     def __init__(self):
-
         # init ros node
         rospy.init_node(self.NODENAME)
+
+        rospy.loginfo("   ___ ___ ___ ___   _   _   _             _   _   __")
+        rospy.loginfo("|/  |   |   |   | __ _) |_  / \   o ._    |_) / \ (_ ")
+        rospy.loginfo("|\ _|_  |   |  _|_   _) |_) \_/   | | |   | \ \_/ __)")
+
         padding = 17
         rospy.loginfo(
-            "-------------------------------------------------------")
+            "+--------------------------------------------------------------------+"
+        )
         rospy.loginfo(f"{'node':<{padding}} {self.NODENAME}")
 
         # ------------------------------------------
@@ -225,7 +230,8 @@ class Kitti360DataPublisher:
             self.SEQUENCE_DIRECTORY = f"2013_05_28_drive_{self.SEQUENCE}_sync"
             rospy.loginfo(f"{'sequence:':<{padding}} {self.SEQUENCE}")
             rospy.loginfo(
-                "-------------------------------------------------------")
+                "+--------------------------------------------------------------------+"
+            )
 
         self.DATA_DIRECTORY = rospy.get_param("kitti360_player/directory", "")
         if self.DATA_DIRECTORY == "" or not os.path.exists(
