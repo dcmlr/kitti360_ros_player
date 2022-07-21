@@ -361,7 +361,7 @@ class Kitti360DataPublisher:
         sim_update_durations = dict()
 
         # need to be handles separately because of higher refresh rate
-        sim_update_durations |= self.handle_sick_points_publishing()
+        sim_update_durations.update(self.handle_sick_points_publishing())
 
         next_frame = self._get_frame_to_be_published()
         # -1 --> sim time before first frame
@@ -378,8 +378,8 @@ class Kitti360DataPublisher:
                 f"({self.sim_clock.clock.to_sec():.5f}s)")
 
             # publish everything that is available
-            sim_update_durations = sim_update_durations | self.publish_available_data(
-                next_frame)
+            sim_update_durations.update(
+                self.publish_available_data(next_frame))
 
             # save frame that was just published
             self.last_published_frame = next_frame
@@ -404,11 +404,14 @@ class Kitti360DataPublisher:
             self.last_published_frame = -1
 
     def publish_available_data(self, frame):
-        return self._publish_velodyne(frame) | self._publish_transforms(
-            frame) | self._publish_images(
-                frame) | self._publish_bounding_boxes(
-                    frame) | self._publish_2d_semantics(
-                        frame) | self._publish_3d_semantics(frame)
+        ret = dict()
+        ret.update(self._publish_velodyne(frame))
+        ret.update(self._publish_transforms(frame))
+        ret.update(self._publish_images(frame))
+        ret.update(self._publish_bounding_boxes(frame))
+        ret.update(self._publish_2d_semantics(frame))
+        ret.update(self._publish_3d_semantics(frame))
+        return ret
 
     # ------------------------------------------
     # INIT
