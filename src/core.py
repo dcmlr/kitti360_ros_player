@@ -189,7 +189,7 @@ class Kitti360DataPublisher:
     # rviz player
     player_status = None
 
-    # whether to print duration of each step (it is recorded anyway, TODO could
+    # whether to print duration of each step (it is recorded anyway, NOTE, could
     # be changed)
     print_step_duration = False
 
@@ -326,7 +326,7 @@ class Kitti360DataPublisher:
     def run(self):
         rospy.loginfo("starting simulation")
 
-        # TODO maybe we dont't want the simulation to be immediately started?
+        # start simulation immediately
         self.unpause()
 
         while not rospy.is_shutdown():
@@ -700,7 +700,6 @@ class Kitti360DataPublisher:
                              "velodyne_points/timestamps.txt"))
         except FileNotFoundError:
             rospy.logerr("timestamps for velodyne not found. FATAL")
-            # TODO does it work like this?
             rospy.signal_shutdown(
                 "cannot find velodyne timestamps --> need for execution")
             exit()
@@ -911,7 +910,7 @@ class Kitti360DataPublisher:
         # for benchmarking
         s = time.time()
 
-        # TODO/NOTE ranges overlap a little bit ~15 frames
+        # NOTE ranges overlap a little bit ~15 frames
         # this code publishes the latest possible pointcloud (if there are two)
         index = self.bounding_box_frame_ranges["start_frame"].searchsorted(
             frame)
@@ -927,7 +926,7 @@ class Kitti360DataPublisher:
                 bb_data["index"]
             ), "bounding box indices unexpectedly do not match"
 
-            # TODO casting takes time and does not need to be done at runtime.
+            # NOTE casting takes time and does not need to be done at runtime.
             # If running time of bounding box publishing is an issue, this could be improved.
 
             bb.index = int(bb_data["index"])
@@ -938,7 +937,7 @@ class Kitti360DataPublisher:
             bb.level_min = float(bb_data["level_min"])
             bb.level_max = float(bb_data["level_max"])
 
-            # TODO we may need to do something different depending on whether
+            # NOTE we may need to do something different depending on whether
             # the bounding box is dynamic or not
             bb.dynamic = bool(bb_data["dynamic"])
             bb.dynamicSeq = abs(int(bb_data["dynamicSeq"]))
@@ -1147,7 +1146,7 @@ class Kitti360DataPublisher:
         return dict([("velodyne", time.time() - s)])
 
     def _publish_transforms(self, frame):
-        # TODO BUG the pointcloud sometimes jumps out and back when playing at
+        # FIXME the pointcloud sometimes jumps out and back when playing at
         # full speed in RVIZ
 
         # transform from GPS/IMU to map (which is identical to world)
@@ -1271,7 +1270,7 @@ class Kitti360DataPublisher:
         if self.publish_3d_semantics_dynamic:
             s = time.time()
 
-            # TODO/NOTE ranges overlap a little bit ~15 frames
+            # NOTE ranges overlap a little bit ~15 frames
             # this code publishes the latest possible pointcloud (if there are two)
             cand = self.bounds_3d_sem_dynamic_index[
                 (self.bounds_3d_sem_dynamic_index["start_frame"] <= frame)
@@ -1330,7 +1329,7 @@ class Kitti360DataPublisher:
 
         if self.publish_3d_semantics_static:
             s = time.time()
-            # TODO/NOTE ranges overlap a little bit ~15 frames
+            # NOTE ranges overlap a little bit ~15 frames
             # this code publishes the latest possible pointcloud (if there are two)
             cand = self.bounds_3d_sem_static_index[
                 (self.bounds_3d_sem_static_index["start_frame"] <= frame)
@@ -1431,7 +1430,6 @@ class Kitti360DataPublisher:
     def terminal_sim_control(self):
         """handles simulation controls via terminal"""
 
-        # TODO this could be made prettier
         seek_0 = lambda: self._seek_fraction(0)
         seek_1 = lambda: self._seek_fraction(0.1)
         seek_2 = lambda: self._seek_fraction(0.2)
@@ -1505,7 +1503,7 @@ class Kitti360DataPublisher:
     def _seek(self, second: float):
         """ effectively resets the timers and starts the simulation from
         timestamp `second` """
-        # TODO BUG: when the simulation is paused and we are seeking back in
+        # FIXME when the simulation is paused and we are seeking back in
         # time, the pointcloud is not being displayed and rviz, there are no
         # pointclouds received. when resuming everything is being shown though
 
