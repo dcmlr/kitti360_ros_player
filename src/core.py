@@ -1155,8 +1155,8 @@ class Kitti360DataPublisher:
         t = TransformStamped()
         # this needs to be the timestamp that the pointcloud also uses
         t.header.stamp = self.timestamps_velodyne.iloc[frame]
-        t.header.frame_id = "kitti360_gpsimu"
-        t.child_frame_id = "map"
+        t.header.frame_id = "map"
+        t.child_frame_id = "kitti360_gpsimu"
 
         # There is never a transform for frame 0. Authors said in email that
         # pose estimation starts only from frame 1, because of how they do GPS

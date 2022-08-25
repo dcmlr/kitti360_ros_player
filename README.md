@@ -148,6 +148,10 @@ If the required files are not present for an enabled sensor it will disable
 itself automatically and print an error message in the logs. The simulation
 will simply continue without the sensor.
 
+**Transformation Tree**
+
+![Transformation Tree](doc/trans_tree.png)
+
 **Python requirements**
 
 Python >=3.8 and package dependencies are listed in `requirements.txt`.
