@@ -12,14 +12,14 @@ If you have comments or questions please contact clemens.mosig@fu-berlin.de.
 requirements.txt` and run `catkin_make` from the root of your catkin workspace.
 
 **Launch Simulation:** To start the simulation you use `roslaunch` and specify the launch file
-`launch/Kitti360.launch` as well as the directory where the KITTI-360 are
+`launch/Kitti360.launch` as well as the directory where the KITTI-360 files are
 located.
 
     roslaunch launch/Kitti360.launch directory:=/path/to/kitti/files/...
 
 This will start the simulation and publish all available sensors in ROS. To
-control the simulation check out the keyboard mappings that are printed upon
-start.
+control the simulation, check out the keyboard mappings that are printed upon
+start (and below).
 
 **Mandatory KITTI-360 files**
 
@@ -69,23 +69,28 @@ The following parameters can be configure on launch:
 | sequence |   00 |        The KITTI-360 dataset sequence to play |
 | directory |             | The path to the KIITI-360 directory |
 
-The timestamps within the simulation start at 0, which represents the earliest
-timestamp in a respective sequence in the KITTI-360 dataset. The offsets are
-hardcoded in the function `read_timestamps()`.
+**Timestamps**
+
+Timestamps in the KITTI-360 dataset contain the actual time the data was
+recorded in the real world.  For simplicity, the timestamps within the
+simulation start at 0 for each sequence. The offsets are hardcoded into the
+function `read_timestamps()`.
 
 **Custom Message Types**
 
-We use custom message types for semantics. These can be found in the `/msg`
+We use custom message types for semantics. These are specified in the `/msg`
 folder.
 
 **Performance**
 
-The main bottleneck of simulation is reading the `*.png` files from the hard drive.
+The main bottleneck of simulation is reading the `*.png` files, which contain
+the semantics, from the hard drive.
 When enabling all sensors, the simulation will not be able to keep
-up with real-time and skip frames. 
+up with real-time and skip frames, even with a fast NVMe M.2 SSD.
 
 To figure out which publishing step takes the most time you can press `b`. This
-will print an overview with each publishing step. For example:
+will print an overview of how much time the data of each sensor takes to
+publish as follows:
 
     [INFO] [...]: -------------------------------------------------------
     [INFO] [...]: sick points               = 0.002s (0.2%)
@@ -109,14 +114,12 @@ will print an overview with each publishing step. For example:
 
 **Disabling Sensors**
 
-All sensors are enabled by default.
-If you do not need certain sensors you can disable them when calling
-`roslaunch`. For example:
-
+All sensors are *enabled* by default.
+Which sensor to disable can be specified when launching the simulation. For example:
 
     roslaunch launch/Kitti360.launch directory:=... pub_sick_points:=False
 
-The parameter names for each sensor are listed below:
+The precise names for each sensor are listed below:
 
 | parameter name | description |
 | --- | --- |
@@ -142,7 +145,8 @@ The parameter names for each sensor are listed below:
 
 
 If the required files are not present for an enabled sensor it will disable
-itself automatically and print an error message in the logs.
+itself automatically and print an error message in the logs. The simulation
+will simply continue without the sensor.
 
 **Python requirements**
 
@@ -152,7 +156,7 @@ Python >=3.8 and package dependencies are listed in `requirements.txt`.
 
 As of now, this package has barely been used and is not sufficiently tested. If
 you encounter any issues please open a GitHub issue or contact me via email
-clemens.mosig@fu-berlin.de.  Also, please do not hesitate to send pull
+clemens.mosig@fu-berlin.de. Also, please do not hesitate to send pull
 requests!
 
 ## Notes / Todos
