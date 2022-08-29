@@ -119,7 +119,7 @@ Which sensor to disable can be specified when launching the simulation. For exam
 
     roslaunch launch/Kitti360.launch directory:=... pub_sick_points:=False
 
-The precise names for each sensor are listed below:
+The precise name for each sensor are listed below:
 
 | parameter name | description |
 | --- | --- |
