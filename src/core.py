@@ -26,7 +26,7 @@ import threading
 import termios
 import fcntl
 from math import sin, cos, tan, pi
-from scipy.spatial.transform import Rotation
+from tf import transformations
 import imageio
 import time
 import os
@@ -1179,7 +1179,8 @@ class Kitti360DataPublisher:
 
         # convert from rotation matrix to quatertion
         # (first three columns are transformation matrix)
-        quat = Rotation.from_matrix(tf_matrix[:, 0:3]).as_quat()
+        tf_matrix44 = np.vstack((tf_matrix, [0,0,0,1]))
+        quat = transformations.quaternion_from_matrix(tf_matrix44)
         t.transform.rotation = Quaternion(x=quat[0],
                                           y=quat[1],
                                           z=quat[2],
