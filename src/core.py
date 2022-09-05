@@ -942,11 +942,15 @@ class Kitti360DataPublisher:
                 transform_array = Float32MultiArray()
                 np_dtype = np.float32
             else:
-                rospy.logerr(f"Unknown datatype: {bb_data[name]['dt']} in bounding box field {name} | {index=} | {frame=}")
+                rospy.logerr(
+                    f"Unknown datatype: {bb_data[name]['dt']} in bounding box field {name} | {index=} | {frame=}"
+                )
                 rospy.signal_shutdown("See previous error message")
                 exit()
 
-            transform_array.data = np.fromstring(bb_data[name]["data"], sep=" ", dtype=np_dtype)
+            transform_array.data = np.fromstring(bb_data[name]["data"],
+                                                 sep=" ",
+                                                 dtype=np_dtype)
             transform_array.layout = transform_array_layout
 
             return transform_array
@@ -1218,7 +1222,7 @@ class Kitti360DataPublisher:
 
         # convert from rotation matrix to quatertion
         # (first three columns are transformation matrix)
-        tf_matrix44 = np.vstack((tf_matrix, [0,0,0,1]))
+        tf_matrix44 = np.vstack((tf_matrix, [0, 0, 0, 1]))
         quat = transformations.quaternion_from_matrix(tf_matrix44)
         t.transform.rotation = Quaternion(x=quat[0],
                                           y=quat[1],
