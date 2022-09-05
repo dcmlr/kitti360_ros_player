@@ -33,6 +33,7 @@ import os
 import numpy as np
 import pandas as pd
 from sensor_msgs.msg import PointCloud2, PointField, Image, CameraInfo, RegionOfInterest
+from std_msgs.msg import Int16MultiArray, Float32MultiArray, MultiArrayLayout, MultiArrayDimension
 from rosgraph_msgs.msg import Clock
 from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
 import tf2_ros
@@ -916,6 +917,40 @@ class Kitti360DataPublisher:
             frame)
         bb_indices = self.bounding_box_frame_ranges["indices"].iloc[index - 1]
 
+        def _get_multiarray(name):
+            num_rows = int(bb_data[name]["rows"])
+            num_cols = int(bb_data[name]["cols"])
+
+            transform_array_layout = MultiArrayLayout()
+            dim0 = MultiArrayDimension()
+            dim0.label = "rows"
+            dim0.size = num_rows
+            dim0.stride = num_rows * num_cols
+
+            dim1 = MultiArrayDimension()
+            dim1.label = "cols"
+            dim1.size = num_cols
+            dim1.stride = num_cols
+
+            transform_array_layout.dim = [dim0, dim1]
+            transform_array_layout.data_offset = 0
+            if bb_data[name]["dt"] == "u":
+                # assuming int16 is enoug
+                transform_array = Int16MultiArray()
+                np_dtype = np.int16
+            elif bb_data[name]["dt"] == "f":
+                transform_array = Float32MultiArray()
+                np_dtype = np.float32
+            else:
+                rospy.logerr(f"Unknown datatype: {bb_data[name]['dt']} in bounding box field {name} | {index=} | {frame=}")
+                rospy.signal_shutdown("See previous error message")
+                exit()
+
+            transform_array.data = np.fromstring(bb_data[name]["data"], sep=" ", dtype=np_dtype)
+            transform_array.layout = transform_array_layout
+
+            return transform_array
+
         for bb_index in bb_indices:
             bb_data = self.bounding_box_data[bb_index]
 
@@ -942,6 +977,10 @@ class Kitti360DataPublisher:
             bb.dynamic = bool(bb_data["dynamic"])
             bb.dynamicSeq = abs(int(bb_data["dynamicSeq"]))
             bb.dynamicIdx = abs(int(bb_data["dynamicIdx"]))
+
+            bb.transform = _get_multiarray("transform")
+            bb.vertices = _get_multiarray("vertices")
+            bb.faces = _get_multiarray("faces")
 
             self.ros_publisher_bounding_boxes.publish(bb)
 

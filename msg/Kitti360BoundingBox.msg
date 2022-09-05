@@ -9,8 +9,10 @@ bool dynamic
 uint32 dynamicSeq
 uint32 dynamicIdx
 
+# transform to the map/world frame
+std_msgs/Float32MultiArray transform
 # vertices that the bounding box define
-geometry_msgs/Point32[] vertices
+std_msgs/Float32MultiArray vertices
 # each Vector describes one surface defined by three points which are
 # referenced by index from `vertices`
-geometry_msgs/Vector3[] faces
+std_msgs/Int16MultiArray faces
