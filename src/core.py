@@ -127,10 +127,11 @@ class Kitti360DataPublisher:
     records_3d_semantics_dynamic = None
 
     # data_3d_semantics/train_full/2013_05_28_drive_{seq:0>4}_sync.xml
-    previous_published_index = None
+    previous_published_index_bb = None
     ros_publisher_bounding_boxes = None
     publish_bounding_boxes = None
     # rviz marker
+    previous_published_index_bb_rviz = None
     ros_publisher_bounding_boxes_rviz_marker = None
     publish_bounding_boxes_rviz_marker = None
     # filled in self.read_bounding_boxes
@@ -929,10 +930,10 @@ class Kitti360DataPublisher:
         # this code publishes the latest possible pointcloud (if there are two)
         index = self.bounding_box_frame_ranges["start_frame"].searchsorted(
             frame)
-        if index == self.previous_published_index:
+        if index == self.previous_published_index_bb:
             return dict([("bounding boxes rviz marker", time.time() - s)])
         else:
-            self.previous_published_index = index
+            self.previous_published_index_bb = index
         bb_indices = self.bounding_box_frame_ranges["indices"].iloc[index - 1]
 
         def _get_multiarray(name):
@@ -1059,10 +1060,10 @@ class Kitti360DataPublisher:
         # this code publishes the latest possible pointcloud (if there are two)
         index = self.bounding_box_frame_ranges["start_frame"].searchsorted(
             frame)
-        if index == self.previous_published_index:
+        if index == self.previous_published_index_bb_rviz:
             return dict([("bounding boxes rviz marker", time.time() - s)])
         else:
-            self.previous_published_index = index
+            self.previous_published_index_bb_rviz = index
 
         bb_indices = self.bounding_box_frame_ranges["indices"].iloc[index - 1]
 
