@@ -28,6 +28,7 @@
     <arg name="pub_fisheye_left"                    default="True"   doc="images of left fisheye camera" />
     <arg name="pub_fisheye_right"                   default="True"   doc="images of right fisheye camera" />
     <arg name="pub_bounding_boxes"                  default="True"   doc="bounding boxes" />
+    <arg name="pub_bounding_boxes_rviz_marker"      default="True"   doc="bounding boxes markers for rviz" />
     <arg name="pub_2d_semantics_left"               default="True"   doc="semantic ID of each pixel (left cam)" />
     <arg name="pub_2d_semantics_right"              default="True"   doc="semantic ID of each pixel (right cam)" />
     <arg name="pub_2d_semantics_rgb_left"           default="True"   doc="color-coded semantic label for each pixel (left cam)" />
@@ -48,6 +49,7 @@
     <param name="/kitti360_player/pub_fisheye_left"                   value="$(arg pub_fisheye_left)" />
     <param name="/kitti360_player/pub_fisheye_right"                  value="$(arg pub_fisheye_right)" />
     <param name="/kitti360_player/pub_bounding_boxes"                 value="$(arg pub_bounding_boxes)" />
+    <param name="/kitti360_player/pub_bounding_boxes_rviz_marker"     value="$(arg pub_bounding_boxes_rviz_marker)" />
     <param name="/kitti360_player/pub_2d_semantics_left"              value="$(arg pub_2d_semantics_left)" />
     <param name="/kitti360_player/pub_2d_semantics_right"             value="$(arg pub_2d_semantics_right)" />
     <param name="/kitti360_player/pub_2d_semantics_rgb_left"          value="$(arg pub_2d_semantics_rgb_left)" />

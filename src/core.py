@@ -25,7 +25,7 @@ import sys
 import threading
 import termios
 import fcntl
-from math import sin, cos, tan, pi
+from math import sin, cos, tan, pi, sqrt
 from tf import transformations
 import imageio
 import time
@@ -33,9 +33,10 @@ import os
 import numpy as np
 import pandas as pd
 from sensor_msgs.msg import PointCloud2, PointField, Image, CameraInfo, RegionOfInterest
-from std_msgs.msg import Int16MultiArray, Float32MultiArray, MultiArrayLayout, MultiArrayDimension
+from std_msgs.msg import Int16MultiArray, Float32MultiArray, MultiArrayLayout, MultiArrayDimension, ColorRGBA
+from visualization_msgs.msg import MarkerArray, Marker
 from rosgraph_msgs.msg import Clock
-from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
+from geometry_msgs.msg import TransformStamped, Quaternion, Vector3, Point, Pose
 import tf2_ros
 from collections import defaultdict
 import xmltodict
@@ -126,8 +127,12 @@ class Kitti360DataPublisher:
     records_3d_semantics_dynamic = None
 
     # data_3d_semantics/train_full/2013_05_28_drive_{seq:0>4}_sync.xml
+    previous_published_index = None
     ros_publisher_bounding_boxes = None
     publish_bounding_boxes = None
+    # rviz marker
+    ros_publisher_bounding_boxes_rviz_marker = None
+    publish_bounding_boxes_rviz_marker = None
     # filled in self.read_bounding_boxes
     bounding_box_data = None
     bounding_box_frame_ranges = None
@@ -264,6 +269,8 @@ class Kitti360DataPublisher:
             "/kitti360_player/pub_fisheye_right")
         self.publish_bounding_boxes = rospy.get_param(
             "/kitti360_player/pub_bounding_boxes")
+        self.publish_bounding_boxes_rviz_marker = rospy.get_param(
+            "/kitti360_player/pub_bounding_boxes_rviz_marker")
         self.publish_semantics_semantic_left = rospy.get_param(
             "/kitti360_player/pub_2d_semantics_left")
         self.publish_semantics_semantic_right = rospy.get_param(
@@ -416,6 +423,7 @@ class Kitti360DataPublisher:
         ret.update(self._publish_transforms(frame))
         ret.update(self._publish_images(frame))
         ret.update(self._publish_bounding_boxes(frame))
+        ret.update(self._publish_bounding_boxes_rviz_marker(frame))
         ret.update(self._publish_2d_semantics(frame))
         ret.update(self._publish_3d_semantics(frame))
         return ret
@@ -588,6 +596,11 @@ class Kitti360DataPublisher:
                 "kitti360/3d/bounding_boxes",
                 Kitti360BoundingBox,
                 queue_size=1)
+        if self.publish_bounding_boxes_rviz_marker:
+            self.ros_publisher_bounding_boxes_rviz_marker = rospy.Publisher(
+                "kitti360/3d/bounding_boxes_rviz_marker",
+                MarkerArray,
+                queue_size=1)
         if self.publish_semantics_semantic_left:
             self.ros_publisher_2d_semantics_semantic_left = rospy.Publisher(
                 "kitti360/2d/semantics/semantic_left",
@@ -636,7 +649,7 @@ class Kitti360DataPublisher:
                 "kitti360/3d/semantics/dynamic", PointCloud2, queue_size=1)
 
     def read_bounding_boxes(self):
-        if not self.publish_bounding_boxes:
+        if not self.publish_bounding_boxes and not self.publish_bounding_boxes_rviz_marker:
             return
 
         path = os.path.join(
@@ -645,6 +658,7 @@ class Kitti360DataPublisher:
 
         if not os.path.exists(path):
             self.publish_bounding_boxes = False
+            self.publish_bounding_boxes_rviz_marker = False
             return
 
         temp = xmltodict.parse(open(path).read())["opencv_storage"]
@@ -915,6 +929,10 @@ class Kitti360DataPublisher:
         # this code publishes the latest possible pointcloud (if there are two)
         index = self.bounding_box_frame_ranges["start_frame"].searchsorted(
             frame)
+        if index == self.previous_published_index:
+            return dict([("bounding boxes rviz marker", time.time() - s)])
+        else:
+            self.previous_published_index = index
         bb_indices = self.bounding_box_frame_ranges["indices"].iloc[index - 1]
 
         def _get_multiarray(name):
@@ -989,6 +1007,163 @@ class Kitti360DataPublisher:
             self.ros_publisher_bounding_boxes.publish(bb)
 
         return dict([("bounding boxes", time.time() - s)])
+
+    def _publish_bounding_boxes_rviz_marker(self, frame):
+        label_color_map = {
+            "bicycle": (235, 174, 52),  # orange
+            "bigPole": (190, 93, 201),  # purple
+            "box": (96, 93, 201),  # blue
+            "bridge": (80, 79, 84),  # light gray
+            "building": (160, 159, 166),  # very light gray
+            "bus": (55, 153, 71),  # green
+            "caravan": (55, 153, 71),  # green
+            "car": (174, 235, 234),  # light blue
+            "driveway": (80, 79, 84),  # light gray
+            "fence": (241, 233, 242),  # purple/white
+            "garage": (241, 233, 242),  # purple/white
+            "gate": (241, 233, 242),  # purple/white
+            "ground": (51, 49, 59),  # different dark gray
+            "guardrail": (241, 233, 242),  # purple/whit
+            "lamp": (190, 93, 201),  # purple
+            "motorcycle": (235, 174, 52),  # orange
+            "pedestrian": (235, 174, 52),  # orange
+            "railtrack": (173, 169, 186),  # dark white purple
+            "rider": (235, 174, 52),  # orange
+            "road": (45, 44, 48),  # dark gray
+            "sidewalk": (132, 131, 133),  # another gray
+            "smallPole": (190, 93, 201),  # purple
+            "stop": (201, 56, 40),  # red
+            "trafficLight": (201, 56, 40),  # yellow
+            "trafficSign": (199, 28, 31),  # red
+            "trailer": (55, 153, 71),  # green
+            "train": (55, 153, 71),  # green
+            "trashbin": (96, 93, 201),  # blue
+            "truck": (55, 153, 71),  # green
+            "tunnel": (184, 180, 180),
+            "unknownConstruction": (96, 93, 201),  # blue
+            "unknownGround": (96, 93, 201),  # blue
+            "unknownObject": (96, 93, 201),  # blue
+            "unknownVehicle": (55, 153, 71),  # green
+            "vegetation": (197, 242, 138),  # light green
+            "vendingmachine": (96, 93, 201),  # blue
+            "wall": (160, 159, 166),  # very light gray
+        }
+
+        if not self.publish_bounding_boxes_rviz_marker:
+            return dict()
+
+        # for benchmarking
+        s = time.time()
+
+        # NOTE ranges overlap a little bit ~15 frames
+        # this code publishes the latest possible pointcloud (if there are two)
+        index = self.bounding_box_frame_ranges["start_frame"].searchsorted(
+            frame)
+        if index == self.previous_published_index:
+            return dict([("bounding boxes rviz marker", time.time() - s)])
+        else:
+            self.previous_published_index = index
+
+        bb_indices = self.bounding_box_frame_ranges["indices"].iloc[index - 1]
+
+        marker_array = []
+        for bb_index in bb_indices:
+            bb_data = self.bounding_box_data[bb_index]
+
+            # +1 because they start counting at 1 and we start counting at 0
+            assert bb_index + 1 == int(
+                bb_data["index"]
+            ), "bounding box indices unexpectedly do not match"
+
+            # FROM: opencv storage method:
+            # list of points and then list three-tuples of point indices
+            # indicating which points form a surface
+            # TO: list of points, where each three points form a surface
+            # --> take three tuples from opencv format and replace indices with
+            # actual points
+
+            # contains coordinates at i of point i in Point.msg format
+            vertices_ros_point_format = []
+            input_vertices = np.fromstring(
+                bb_data["vertices"]["data"], sep=" ",
+                dtype=np.float32).reshape(int(bb_data["vertices"]["rows"]),
+                                          int(bb_data["vertices"]["cols"]))
+            for vertex in input_vertices:
+                p = Point()
+                p.x = vertex[0]
+                p.y = vertex[1]
+                p.z = vertex[2]
+                vertices_ros_point_format.append(p)
+
+            # translate vertex index to actual point
+            input_faces = np.fromstring(bb_data["faces"]["data"],
+                                        sep=" ",
+                                        dtype=np.int32)
+            points_rviz_format = []
+            for vertex_index in input_faces:
+                points_rviz_format.append(
+                    vertices_ros_point_format[vertex_index])
+
+            # create message
+            marker_msg = Marker()
+
+            marker_msg.header.seq = bb_index
+            marker_msg.header.stamp = self.timestamps_velodyne.iloc[frame]
+            marker_msg.header.frame_id = "map"
+
+            # namespace: not sure if this is correct
+            marker_msg.ns = str(frame)
+            marker_msg.id = bb_index
+
+            marker_msg.type = marker_msg.TRIANGLE_LIST
+            marker_msg.action = marker_msg.ADD
+
+            input_transform = np.fromstring(bb_data["transform"]["data"],
+                                            sep=" ",
+                                            dtype=np.float32).reshape(4, 4)
+            marker_msg.pose.position.x = input_transform[0, 3]
+            marker_msg.pose.position.y = input_transform[1, 3]
+            marker_msg.pose.position.z = input_transform[2, 3]
+            quat = transformations.quaternion_from_matrix(input_transform)
+            norm = sqrt(quat[0]**2 + quat[1]**2 + quat[2]**2 + quat[3]**2)
+            marker_msg.pose.orientation.x = quat[0] / norm
+            marker_msg.pose.orientation.y = quat[1] / norm
+            marker_msg.pose.orientation.z = quat[2] / norm
+            marker_msg.pose.orientation.w = quat[3] / norm
+
+            # --> original size
+            marker_msg.scale.x = 1
+            marker_msg.scale.y = 1
+            marker_msg.scale.z = 1
+
+            # TODO maybe make this configurable or choose some better dynamic (?) number
+            # right now --> just keeping it there "forever"
+            marker_msg.lifetime = rospy.Duration(secs=100000)
+
+            # TODO not sure
+            marker_msg.frame_locked = True
+
+            marker_msg.points = points_rviz_format
+
+            # not transparent
+            marker_msg.color.a = 1
+            # marker_msg.color.r = label_color_map[bb_data["label"]][0]
+            # marker_msg.color.g = label_color_map[bb_data["label"]][1]
+            # marker_msg.color.b = label_color_map[bb_data["label"]][2]
+            c = ColorRGBA()
+            c.a = 1
+            c.r = label_color_map[bb_data["label"]][0]
+            c.g = label_color_map[bb_data["label"]][1]
+            c.b = label_color_map[bb_data["label"]][2]
+            marker_msg.colors = [c] * len(points_rviz_format)
+
+            marker_array.append(marker_msg)
+
+        marker_array_msg = MarkerArray()
+        marker_array_msg.markers = marker_array
+        self.ros_publisher_bounding_boxes_rviz_marker.publish(marker_array_msg)
+
+        return dict([("bounding boxes rviz marker", time.time() - s)])
 
     def _publish_images(self, frame):
 
