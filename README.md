@@ -35,6 +35,14 @@ present. Everything else is optional.
         |- 2013_05_28_drive_{seq:0>4}_sync
             |- poses.txt
 
+## Example in RVIZ
+
+Below you can see how the simulation may look like in rviz. Both
+perspective and fisheye cameras as well as the velodyne pointcloud and the
+derived bounding boxes are visualized.
+
+![RVIZ Example](doc/rviz_demo.png)
+
 ## Usage Guide
 
 **Required Directory Structure**
