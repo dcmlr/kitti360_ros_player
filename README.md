@@ -39,7 +39,8 @@ present. Everything else is optional.
 
 Below you can see how the simulation may look like in rviz. Both
 perspective and fisheye cameras as well as the velodyne pointcloud and the
-derived bounding boxes are visualized.
+derived bounding boxes are visualized. Note that the size of the pointcloud
+markers is increased by a factor of 10 for this screenshot.
 
 ![RVIZ Example](doc/rviz_demo.png)
 
