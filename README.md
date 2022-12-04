@@ -12,8 +12,8 @@ If you have comments or questions please contact clemens.mosig@fu-berlin.de.
 requirements.txt` and run `catkin_make` from the root of your catkin workspace.
 
 **Launch Simulation:** To start the simulation you use `roslaunch` and specify the launch file
-`launch/Kitti360.launch` as well as the directory where the KITTI-360 files are
-located.
+`launch/Kitti360.launch` as well as the directory (absolute path) where the
+KITTI-360 files are located.
 
     roslaunch launch/Kitti360.launch directory:=/path/to/kitti/files/...
 

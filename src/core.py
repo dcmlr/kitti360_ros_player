@@ -244,7 +244,9 @@ class Kitti360DataPublisher:
         if self.DATA_DIRECTORY == "" or not os.path.exists(
                 self.DATA_DIRECTORY):
             rospy.logerr(
-                f"Directory does not exist: {self.DATA_DIRECTORY}. FATAL")
+                f"Directory does not exist: {self.DATA_DIRECTORY}. FATAL.")
+            rospy.logerr(
+                "Note that the directory has to be specified as absolute path.")
             rospy.signal_shutdown("provided data directory is invalid")
             exit()
 
