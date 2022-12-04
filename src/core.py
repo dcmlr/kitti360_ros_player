@@ -246,7 +246,8 @@ class Kitti360DataPublisher:
             rospy.logerr(
                 f"Directory does not exist: {self.DATA_DIRECTORY}. FATAL.")
             rospy.logerr(
-                "Note that the directory has to be specified as absolute path.")
+                "Note that the directory has to be specified as absolute path."
+            )
             rospy.signal_shutdown("provided data directory is invalid")
             exit()
 
@@ -1073,6 +1074,10 @@ class Kitti360DataPublisher:
         for bb_index in bb_indices:
             bb_data = self.bounding_box_data[bb_index]
 
+            # skipt dynamic objects
+            if int(bb_data["timestamp"]) > 0:
+                continue
+
             # +1 because they start counting at 1 and we start counting at 0
             assert bb_index + 1 == int(
                 bb_data["index"]
@@ -1091,17 +1096,27 @@ class Kitti360DataPublisher:
                 bb_data["vertices"]["data"], sep=" ",
                 dtype=np.float32).reshape(int(bb_data["vertices"]["rows"]),
                                           int(bb_data["vertices"]["cols"]))
-            for vertex in input_vertices:
-                p = Point()
-                p.x = vertex[0]
-                p.y = vertex[1]
-                p.z = vertex[2]
-                vertices_ros_point_format.append(p)
 
-            # translate vertex index to actual point
+            input_transform = np.fromstring(bb_data["transform"]["data"],
+                                            sep=" ",
+                                            dtype=np.float32).reshape(4, 4)
+
             input_faces = np.fromstring(bb_data["faces"]["data"],
                                         sep=" ",
                                         dtype=np.int32)
+
+            input_transform_slided = input_transform[:3, :3]
+            for vertex in input_vertices:
+                # first apply transform
+                v = np.matmul(input_transform_slided, vertex)
+
+                p = Point()
+                p.x = v[0]
+                p.y = v[1]
+                p.z = v[2]
+                vertices_ros_point_format.append(p)
+
+            # translate vertex index to actual point
             points_rviz_format = []
             for vertex_index in input_faces:
                 points_rviz_format.append(
@@ -1121,18 +1136,15 @@ class Kitti360DataPublisher:
             marker_msg.type = marker_msg.TRIANGLE_LIST
             marker_msg.action = marker_msg.ADD
 
-            input_transform = np.fromstring(bb_data["transform"]["data"],
-                                            sep=" ",
-                                            dtype=np.float32).reshape(4, 4)
             marker_msg.pose.position.x = input_transform[0, 3]
             marker_msg.pose.position.y = input_transform[1, 3]
             marker_msg.pose.position.z = input_transform[2, 3]
-            quat = transformations.quaternion_from_matrix(input_transform)
-            norm = sqrt(quat[0]**2 + quat[1]**2 + quat[2]**2 + quat[3]**2)
-            marker_msg.pose.orientation.x = quat[0] / norm
-            marker_msg.pose.orientation.y = quat[1] / norm
-            marker_msg.pose.orientation.z = quat[2] / norm
-            marker_msg.pose.orientation.w = quat[3] / norm
+            # identity quaternion -> we apply the transformation already
+            # directly to the points
+            marker_msg.pose.orientation.x = 0
+            marker_msg.pose.orientation.y = 0
+            marker_msg.pose.orientation.z = 0
+            marker_msg.pose.orientation.w = 1
 
             # --> original size
             marker_msg.scale.x = 1
