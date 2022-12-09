@@ -8,8 +8,9 @@ If you have comments or questions please contact clemens.mosig@fu-berlin.de.
 
 ## Quick Start
 
-**Installation:** Install python dependencies with `pip install -r
-requirements.txt` and run `catkin_make` from the root of your catkin workspace.
+**Installation:** Clone this repository, install python dependencies with `pip
+install -r requirements.txt`, and run `catkin_make` from the root of your
+catkin workspace.
 
 **Launch Simulation:** To start the simulation you use `roslaunch` and specify the launch file
 `launch/Kitti360.launch` as well as the directory (absolute path) where the
@@ -67,7 +68,7 @@ This package assumes that the sensor data is structured as specified in the
 
 **Basic Configuration**
 
-The following parameters can be configure on launch:
+The following parameters can be configured on launch:
 
 | parameter name | default | description |
 | --- | --- | --- |
@@ -174,8 +175,8 @@ requests!
 
 ## Notes / Todos
 
-If you have comments on this or would like to contribute please send me an
-email (clemens.mosig@fu-berlin.de) or open a pull request.
+If you have comments on this or would like to contribute please email me
+(clemens.mosig@fu-berlin.de) or open a pull request.
 
 * **OXTS measurements**: We are not yet publishing these.
 * **Camera Intrinsics**: We are not sure 100% sure whether the camera intrinsics are published correctly (see NOTEs in code).
