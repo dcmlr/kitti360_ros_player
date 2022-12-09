@@ -178,6 +178,10 @@ requests!
 If you have comments on this or would like to contribute please email me
 (clemens.mosig@fu-berlin.de) or open a pull request.
 
+* **Sick Point Transforms**: KITTI-360 only provides poses at the rate of the
+  Velodyne publishing speed. Sick points are published at four times the rate,
+which means most of the transforms for sick points have to rely on "old"
+position data.
 * **OXTS measurements**: We are not yet publishing these.
 * **Camera Intrinsics**: We are not sure 100% sure whether the camera intrinsics are published correctly (see NOTEs in code).
 * **Static Transforms**: These are published from the launch file (`Kitti360.launch`). We computed the parameters by hand from the sketch on the KITTI360 website. There may be errors.
