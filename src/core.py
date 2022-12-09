@@ -139,11 +139,11 @@ class Kitti360DataPublisher:
     bounding_box_frame_ranges = None
 
     # camera intrinsics
-    ros_publisher_camera_intrinsics_unrectified_unrectified_left = None
-    ros_publisher_camera_intrinsics_unrectified_unrectified_right = None
+    ros_publisher_camera_intrinsics_unrectified_left = None
+    ros_publisher_camera_intrinsics_unrectified_right = None
     ros_publisher_camera_intrinsics_fisheye_left = None
     ros_publisher_camera_intrinsics_fisheye_right = None
-    publish_camera_intrinsics = True
+    publish_camera_intrinsics = None
 
     # ------------------------------------------
     # Timestamps
@@ -295,6 +295,8 @@ class Kitti360DataPublisher:
             "/kitti360_player/pub_3d_semantics_static")
         self.publish_3d_semantics_dynamic = rospy.get_param(
             "/kitti360_player/pub_3d_semantics_dynamic")
+        self.publish_camera_intrinsics = rospy.get_param(
+            "/kitti360_player/pub_camera_intrinsics")
 
         # ------------------------------------------
         # read timestamps for all data (multiple timestamps.txt)

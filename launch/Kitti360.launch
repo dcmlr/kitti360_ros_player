@@ -39,6 +39,7 @@
     <arg name="pub_2d_confidence_right"             default="True"   doc="confidence map (right cam)" />
     <arg name="pub_3d_semantics_static"             default="True"   doc="static 3d semantics" />
     <arg name="pub_3d_semantics_dynamic"            default="True"   doc="dynamic 3d semantics" />
+    <arg name="pub_camera_intrinsics"               default="True"   doc="camera intrinsics" />
 
     <param name="/kitti360_player/pub_velodyne"                       value="$(arg pub_velodyne)" />
     <param name="/kitti360_player/pub_sick_points"                    value="$(arg pub_sick_points)" />
@@ -60,6 +61,7 @@
     <param name="/kitti360_player/pub_2d_confidence_right"            value="$(arg pub_2d_confidence_right)" />
     <param name="/kitti360_player/pub_3d_semantics_static"            value="$(arg pub_3d_semantics_static)" />
     <param name="/kitti360_player/pub_3d_semantics_dynamic"           value="$(arg pub_3d_semantics_dynamic)" />
+    <param name="/kitti360_player/pub_camera_intrinsics"              value="$(arg pub_camera_intrinsics)" />
 
     <!-- the actual simulation node -->
     <node pkg="kitti360_publisher" name="kitti360_publisher" type="core.py" output="screen"/>
