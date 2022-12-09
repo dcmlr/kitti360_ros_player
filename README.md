@@ -95,7 +95,7 @@ folder.
 
 The main bottleneck of simulation is reading the `*.png` files, which contain
 the semantics, from the hard drive.
-When enabling all sensors, the simulation will not be able to keep
+When enabling *all* sensors, the simulation will not be able to keep
 up with real-time and skip frames, even with a fast NVMe M.2 SSD.
 
 To figure out which publishing step takes the most time you can press `b`. This
