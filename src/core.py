@@ -405,12 +405,15 @@ class Kitti360DataPublisher:
             self.last_published_frame = next_frame
 
             # for benchmarking --> how long each step took
-            padding = 25
+            padding = 26
             if self.print_step_duration:
                 rospy.loginfo(
                     "-------------------------------------------------------")
                 total = sum(sim_update_durations.values())
-                for name, duration in sim_update_durations.items():
+                # print sorted by the duration
+                for name, duration in sorted(sim_update_durations.items(),
+                                             key=lambda x: x[1],
+                                             reverse=True):
                     rospy.loginfo(
                         f"{name:<{padding}} = {duration:.3f}s ({((duration/total)*100):.1f}%)"
                     )

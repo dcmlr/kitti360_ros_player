@@ -103,21 +103,21 @@ will print an overview of how much time the data of each sensor takes to
 publish as follows:
 
     [INFO] [...]: -------------------------------------------------------
-    [INFO] [...]: sick points               = 0.002s (0.2%)
-    [INFO] [...]: velodyne                  = 0.002s (0.2%)
+    [INFO] [...]: image_02_data_rgb         = 0.661s (51.4%)
+    [INFO] [...]: 3d semantics static       = 0.417s (32.5%)
+    [INFO] [...]: image_03_data_rgb         = 0.069s (5.3%)
+    [INFO] [...]: image_00_data_rgb         = 0.023s (1.8%)
     [INFO] [...]: image_00_data_rect        = 0.022s (1.7%)
     [INFO] [...]: image_01_data_rect        = 0.019s (1.5%)
-    [INFO] [...]: image_00_data_rgb         = 0.023s (1.8%)
     [INFO] [...]: image_01_data_rgb         = 0.020s (1.5%)
-    [INFO] [...]: image_02_data_rgb         = 0.661s (51.4%)
-    [INFO] [...]: image_03_data_rgb         = 0.069s (5.3%)
-    [INFO] [...]: bounding boxes            = 0.004s (0.3%)
-    [INFO] [...]: 2d semanticID left        = 0.004s (0.3%)
+    [INFO] [...]: 2d confidence left        = 0.018s (1.4%)
     [INFO] [...]: 2d semantic rgb left      = 0.013s (1.0%)
     [INFO] [...]: 2d instanceID left        = 0.008s (0.7%)
-    [INFO] [...]: 2d confidence left        = 0.018s (1.4%)
+    [INFO] [...]: bounding boxes            = 0.004s (0.3%)
+    [INFO] [...]: 2d semanticID left        = 0.004s (0.3%)
+    [INFO] [...]: sick points               = 0.002s (0.2%)
+    [INFO] [...]: velodyne                  = 0.002s (0.2%)
     [INFO] [...]: 3d semantics dynamic      = 0.003s (0.2%)
-    [INFO] [...]: 3d semantics static       = 0.417s (32.5%)
     [INFO] [...]: total                     = 1.285s
     [INFO] [...]: -------------------------------------------------------
 
