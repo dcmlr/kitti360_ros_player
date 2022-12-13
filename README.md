@@ -142,6 +142,7 @@ The precise name for each sensor are listed below:
 |`pub_fisheye_left`                 |images of left fisheye camera |
 |`pub_fisheye_right`                |images of right fisheye camera |
 |`pub_bounding_boxes`               |bounding boxes |
+|`pub_bounding_boxes_rviz_marker`   |bounding boxes visualization for rviz|
 |`pub_2d_semantics_left`            |semantic ID of each pixel (left cam) |
 |`pub_2d_semantics_right`           |semantic ID of each pixel (right cam) |
 |`pub_2d_semantics_rgb_left`        |color-coded semantic label for each pixel (left cam) |
@@ -152,6 +153,7 @@ The precise name for each sensor are listed below:
 |`pub_2d_confidence_right`          |confidence map (right cam) |
 |`pub_3d_semantics_static`          |static 3d semantics |
 |`pub_3d_semantics_dynamic`         |dynamic 3d semantics |
+|`pub_camera_intrinsics`            |camera intrinsics |
 
 
 If the required files are not present for an enabled sensor it will disable
