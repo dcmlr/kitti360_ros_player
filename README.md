@@ -190,3 +190,7 @@ position data.
 * **3D Semantics and Bounding Boxes**: The ranges specified in the filenames overlap in most cases (~15 frames). If we have the choice between two ranges we publish the one with the highest range, i.e., prefer 90-150 over 50-100 when the current frame is 95.
 * **Bounding Boxes**: static and dynamic bounding boxes are handled the same way at the moment. This may need to be changed. The custom bounding box message contains a bool that represents whether it is dynamic or static.
 * **3D Semantics**: 3d semantics are accumulated to a range of frames in KITTI360. If there is no pointcloud for a given frame range then we publish nothing.
+
+## Acknowledgements
+
+* The file `src/labels.py` is copied from the [kitti360Scripts repository](https://github.com/autonomousvision/kitti360Scripts) by the autonomousvision group. 

@@ -42,6 +42,7 @@ from collections import defaultdict
 import xmltodict
 import itertools
 from kitti360_publisher.msg import Kitti360BoundingBox, Kitti360SemanticID, Kitti360SemanticRGB, Kitti360InstanceID, Kitti360Confidence
+from labels import id2label, name2label
 
 
 class Kitti360DataPublisher:
@@ -1018,46 +1019,6 @@ class Kitti360DataPublisher:
         return dict([("bounding boxes", time.time() - s)])
 
     def _publish_bounding_boxes_rviz_marker(self, frame):
-        label_color_map = {
-            "bicycle": (235, 174, 52),  # orange
-            "bigPole": (190, 93, 201),  # purple
-            "box": (96, 93, 201),  # blue
-            "bridge": (80, 79, 84),  # light gray
-            "building": (160, 159, 166),  # very light gray
-            "bus": (55, 153, 71),  # green
-            "caravan": (55, 153, 71),  # green
-            "car": (174, 235, 234),  # light blue
-            "driveway": (80, 79, 84),  # light gray
-            "fence": (241, 233, 242),  # purple/white
-            "garage": (241, 233, 242),  # purple/white
-            "gate": (241, 233, 242),  # purple/white
-            "ground": (51, 49, 59),  # different dark gray
-            "guardrail": (241, 233, 242),  # purple/whit
-            "lamp": (190, 93, 201),  # purple
-            "motorcycle": (235, 174, 52),  # orange
-            "pedestrian": (235, 174, 52),  # orange
-            "railtrack": (173, 169, 186),  # dark white purple
-            "rider": (235, 174, 52),  # orange
-            "road": (45, 44, 48),  # dark gray
-            "sidewalk": (132, 131, 133),  # another gray
-            "smallPole": (190, 93, 201),  # purple
-            "stop": (201, 56, 40),  # red
-            "trafficLight": (201, 56, 40),  # yellow
-            "trafficSign": (199, 28, 31),  # red
-            "trailer": (55, 153, 71),  # green
-            "train": (55, 153, 71),  # green
-            "trashbin": (96, 93, 201),  # blue
-            "truck": (55, 153, 71),  # green
-            "tunnel": (184, 180, 180),
-            "unknownConstruction": (96, 93, 201),  # blue
-            "unknownGround": (96, 93, 201),  # blue
-            "unknownObject": (96, 93, 201),  # blue
-            "unknownVehicle": (55, 153, 71),  # green
-            "vegetation": (197, 242, 138),  # light green
-            "vendingmachine": (96, 93, 201),  # blue
-            "wall": (160, 159, 166),  # very light gray
-        }
-
         if not self.publish_bounding_boxes_rviz_marker:
             return dict()
 
@@ -1165,16 +1126,41 @@ class Kitti360DataPublisher:
 
             marker_msg.points = points_rviz_format
 
-            # not transparent
+            # not transparent (is also not supported by the RVIZ)
             marker_msg.color.a = 1
-            # marker_msg.color.r = label_color_map[bb_data["label"]][0]
-            # marker_msg.color.g = label_color_map[bb_data["label"]][1]
-            # marker_msg.color.b = label_color_map[bb_data["label"]][2]
             c = ColorRGBA()
             c.a = 1
-            c.r = label_color_map[bb_data["label"]][0]
-            c.g = label_color_map[bb_data["label"]][1]
-            c.b = label_color_map[bb_data["label"]][2]
+
+            # some bounding box labels are not present in the labels.py file
+            # provided by the KITTI-360 authors. Just for colors, we are
+            # mapping them to different labels.
+            missing_label_mapping = {
+                "unknownGround": "ground",
+                "unknownConstruction": "unknown construction",
+                "unknownVehicle": "unknown vehicle",
+                "unknownObject": "unknown object",
+                "bigPole": "pole",
+                "driveway": "road",
+                "railtrack": "rail track",
+                "trafficSign": "traffic sign",
+                "trashbin": "trash bin",
+                "pedestrian": "person",
+                "guardrail": "guard rail",
+                "smallPole": "smallpole",
+                "trafficLight": "traffic light",
+                "vendingmachine": "vending machine"
+            }
+            if bb_data["label"] not in name2label:
+                c.r = name2label[missing_label_mapping[
+                    bb_data["label"]]].color[0]
+                c.g = name2label[missing_label_mapping[
+                    bb_data["label"]]].color[1]
+                c.b = name2label[missing_label_mapping[
+                    bb_data["label"]]].color[2]
+            else:
+                c.r = name2label[bb_data["label"]].color[0]
+                c.g = name2label[bb_data["label"]].color[1]
+                c.b = name2label[bb_data["label"]].color[2]
             marker_msg.colors = [c] * len(points_rviz_format)
 
             marker_array.append(marker_msg)
