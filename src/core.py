@@ -1539,6 +1539,9 @@ class Kitti360DataPublisher:
                     self.records_3d_semantics_dynamic = df.to_records(
                         index=False).tobytes()
                     self.filename_3d_semantics_dynamic = path
+                    rospy.loginfo(
+                        f"loaded new batch of DYNAMIC 3d semantics: frames {cand['start_frame'].iloc[0]} to {cand['end_frame'].iloc[0]}"
+                    )
 
                 msg = PointCloud2()
                 msg.header.stamp = self.timestamps_velodyne.iloc[frame]
@@ -1591,6 +1594,9 @@ class Kitti360DataPublisher:
                     self.records_3d_semantics_static = df.to_records(
                         index=False).tobytes()
                     self.filename_3d_semantics_static = path
+                    rospy.loginfo(
+                        f"loaded new batch of STATIC 3d semantics: frames {cand['start_frame'].iloc[0]} to {cand['end_frame'].iloc[0]}"
+                    )
 
                 msg = PointCloud2()
                 msg.header.stamp = self.timestamps_velodyne.iloc[frame]
