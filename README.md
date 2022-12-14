@@ -41,9 +41,24 @@ present. Everything else is optional.
 Below you can see how the simulation may look like in rviz. Both
 perspective and fisheye cameras as well as the velodyne pointcloud and the
 derived bounding boxes are visualized. Note that the size of the pointcloud
-markers is increased by a factor of 10 for this screenshot.
+markers is increased by a factor of 5 for this screenshot.
 
-![RVIZ Example](doc/rviz_demo.png)
+![RVIZ example with bounding boxes](doc/rviz_demo.png)
+
+## Labeled Velodyne pointclouds
+
+We provide script (`scripts/label_velodyne`) which labels the velodyne
+pointcloud using the semantic 3d data provided by KITTI-360. 
+
+For each point in velodyne pointcloud frame we take the closest point in the 3d
+semantics dataset within 20cm radius and take its semantic label. If no point
+is found the point is marked as unlabeled. The obtained label is saved to the
+ring field.
+
+This labeled pointcloud is also published if available. An example can be seen
+in the following screenshot.
+
+![RVIZ example with bounding boxes](doc/labeled_pointcloud_demo.png)
 
 ## Usage Guide
 
