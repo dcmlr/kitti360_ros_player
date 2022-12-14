@@ -395,10 +395,13 @@ class Kitti360DataPublisher:
         if next_frame != -1 and next_frame != self.last_published_frame:
             skipped = next_frame - self.last_published_frame - 1
             logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
-            skipped_string = f"(skipping {skipped})"
+            if skipped >= 0:
+                skipped_string = f"(skipping {skipped})"
+            else:
+                skipped_string = "(backwards)"
+
             logfunc(
-                f"advancing to next VELODYNE frame" +
-                f" {skipped_string:<21}" +
+                f"new VELODYNE frame" + f" {skipped_string:<14}" +
                 f"{self._convert_frame_int_to_string(self.last_published_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
                 f"({self.sim_clock.clock.to_sec():.2f}s, {((self.sim_clock.clock.to_sec()/self.total_simulation_time)*100):.1f}%)"
@@ -879,10 +882,12 @@ class Kitti360DataPublisher:
         if self.last_published_sick_frame is not None:
             skipped = next_frame - self.last_published_sick_frame - 1
             logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
-            skipped_string = f"(skipping {skipped})"
+            if skipped >= 0:
+                skipped_string = f"(skipping {skipped})"
+            else:
+                skipped_string = "(backwards)"
             logfunc(
-                f"advancing to next SICK points frame" +
-                f" {skipped_string:<18}" +
+                f"new SICK frame" + f" {skipped_string:<18}" +
                 f"{self._convert_frame_int_to_string(self.last_published_sick_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
                 f"({self.sim_clock.clock.to_sec():.2f}s, {((self.sim_clock.clock.to_sec()/self.total_simulation_time)*100):.1f}%)"
@@ -1633,37 +1638,43 @@ class Kitti360DataPublisher:
     # COMMAND LINE INTERFACE
     def print_help(self):
         rospy.loginfo(
-            "+--------------------------------------------------------------------+"
+            "+------------------------------------------------------------------------+"
         )
         rospy.loginfo(
-            "| key mapping for simulation control via terminal                    |"
+            "| key mapping for simulation control via terminal                        |"
         )
         rospy.loginfo(
-            "|    *       : print this                                            |"
+            "|    *       : print this                                                |"
         )
         rospy.loginfo(
-            "|    s       : step to next frame by VELODYNE (skips 3 SICK frames)  |"
+            "|    s       : step to next VELODYNE frame (skips 3 SICK frames)         |"
         )
         rospy.loginfo(
-            "|    d       : step to next frame by SICK                            |"
+            "|    S       : step to previous VELODYNE frame  (skips 3 SICK frames)    |"
         )
         rospy.loginfo(
-            "|    <space> : pause/unpause simulation                              |"
+            "|    d       : step to next SICK frame                                   |"
         )
         rospy.loginfo(
-            "|    k       : increase playback speed factor by 0.1                 |"
+            "|    D       : step to previous SICK frame                               |"
         )
         rospy.loginfo(
-            "|    j       : decrease playback speed factor by 0.1                 |"
+            "|    <space> : pause/unpause simulation                                  |"
         )
         rospy.loginfo(
-            "|    [0-9]   : seek to x0% of simulation (e.g. 6 -> 60%)             |"
+            "|    k       : increase playback speed factor by 0.1                     |"
         )
         rospy.loginfo(
-            "|    b       : print duration of each publishing step                |"
+            "|    j       : decrease playback speed factor by 0.1                     |"
         )
         rospy.loginfo(
-            "+--------------------------------------------------------------------+"
+            "|    [0-9]   : seek to x0% of simulation (e.g. 6 -> 60%)                 |"
+        )
+        rospy.loginfo(
+            "|    b       : print duration of each publishing step                    |"
+        )
+        rospy.loginfo(
+            "+------------------------------------------------------------------------+"
         )
 
     def toggle_print_step_duration(self):
@@ -1687,7 +1698,9 @@ class Kitti360DataPublisher:
             lambda: (self.print_help), {
                 " ": self.toggle_pause,
                 "s": self.step_by_velodyne,
+                "S": self.step_backwards_by_velodyne,
                 "d": self.step_by_sick,
+                "D": self.step_backwards_by_sick,
                 "k": self.increase_playback_speed,
                 "j": self.decrease_playback_speed,
                 "0": seek_0,
@@ -1781,6 +1794,24 @@ class Kitti360DataPublisher:
 
         return []
 
+    def step_backwards_by_velodyne(self, _=None):
+        """ jumps to previous velodyne frame"""
+
+        # first pause if not paused
+        self.pause()
+
+        # check if we are already at frame 0
+        if self.last_published_frame > 0:
+            self._seek(
+                self.timestamps_velodyne.iloc[self.last_published_frame -
+                                              1].to_sec())
+        else:
+            rospy.loginfo(
+                "Can't step to previous velodyne frame. Simulation already on first frame."
+            )
+
+        return []
+
     def step_by_sick(self, _=None):
         """ jumps to next available sick frame"""
 
@@ -1799,6 +1830,24 @@ class Kitti360DataPublisher:
         else:
             rospy.loginfo(
                 "Can't advance to next sick frame. Simulation is at last frame."
+            )
+
+        return []
+
+    def step_backwards_by_sick(self, _=None):
+        """ jumps to previous frame"""
+
+        # first pause, then step
+        self.pause()
+
+        # looks for timestamp of the next available frame
+        if self.last_published_sick_frame > 0:
+            # move simulation to next frame
+            self._seek(
+                self.timestamps_sick_points.iloc[self.last_published_sick_frame - 1].to_sec())
+        else:
+            rospy.loginfo(
+                "Can't step to previous sick frame. Simulation already on first frame."
             )
 
         return []
