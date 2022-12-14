@@ -201,6 +201,11 @@ class Kitti360DataPublisher:
     # be changed)
     print_step_duration = False
 
+    # total stats
+    total_number_of_frames_velodyne = None
+    total_number_of_frames_sick = None
+    total_simulation_time = None
+
     # ------------------------------------------
 
     def __init__(self):
@@ -392,11 +397,12 @@ class Kitti360DataPublisher:
             logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
             skipped_string = f"(skipping {skipped})"
             logfunc(
-                f"advancing to next VELODYNE synced frame" +
-                f" {skipped_string:<14}" +
+                f"advancing to next VELODYNE frame" +
+                f" {skipped_string:<21}" +
                 f"{self._convert_frame_int_to_string(self.last_published_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
-                f"({self.sim_clock.clock.to_sec():.5f}s)")
+                f"({self.sim_clock.clock.to_sec():.2f}s, {((self.sim_clock.clock.to_sec()/self.total_simulation_time)*100):.1f}%)"
+            )
 
             # publish everything that is available
             sim_update_durations.update(
@@ -723,6 +729,10 @@ class Kitti360DataPublisher:
                 os.path.join(self.DATA_DIRECTORY, "data_3d_raw",
                              self.SEQUENCE_DIRECTORY,
                              "velodyne_points/timestamps.txt"))
+            self.total_number_of_frames_velodyne = self.timestamps_velodyne.shape[
+                0]
+            self.total_simulation_time = self.timestamps_velodyne.iloc[
+                -1].to_sec()
         except FileNotFoundError:
             rospy.logerr("timestamps for velodyne not found. FATAL")
             rospy.signal_shutdown(
@@ -736,6 +746,12 @@ class Kitti360DataPublisher:
                 os.path.join(self.DATA_DIRECTORY, "data_3d_raw",
                              self.SEQUENCE_DIRECTORY,
                              "sick_points/timestamps.txt"))
+            self.total_number_of_frames_sick = self.timestamps_sick_points.shape[
+                0]
+            if self.timestamps_sick_points.iloc[-1].to_sec(
+            ) > self.total_simulation_time:
+                self.total_simulation_time = self.timestamps_sick_points.iloc[
+                    -1].to_sec()
         except FileNotFoundError:
             rospy.logerr("timestamps for sick points not found. Disabling.")
             self.publish_sick_points = False
@@ -869,7 +885,8 @@ class Kitti360DataPublisher:
                 f" {skipped_string:<18}" +
                 f"{self._convert_frame_int_to_string(self.last_published_sick_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
-                f"({self.sim_clock.clock.to_sec():.5f}s)")
+                f"({self.sim_clock.clock.to_sec():.2f}s, {((self.sim_clock.clock.to_sec()/self.total_simulation_time)*100):.1f}%)"
+            )
 
         # --------------------------------------------------
         # construct and publish sick points message
