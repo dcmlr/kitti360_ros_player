@@ -304,6 +304,8 @@ class Kitti360DataPublisher:
         self.publish_camera_intrinsics = rospy.get_param(
             "/kitti360_player/pub_camera_intrinsics")
 
+        rospy.loginfo(
+            "Filling caches and preprocessing... this can take few seconds!")
         # ------------------------------------------
         # read timestamps for all data (multiple timestamps.txt)
         self.read_timestamps()
@@ -831,9 +833,14 @@ class Kitti360DataPublisher:
 
         def _read_dir(p):
             # extract start and end frame from
-            df = pd.Series(os.listdir(folder_path)).to_frame(name="filename")
+            df = pd.Series(os.listdir(p)).to_frame(name="filename")
             df["start_frame"], df["end_frame"] = zip(*df["filename"].str.split(
                 '[_.]').str[:2].apply(lambda x: (int(x[0]), int(x[1]))))
+            # check if the files actually contain
+            df["filter"] = df["filename"].apply(
+                lambda fn: open(os.path.join(p, fn), encoding="ISO-8859-1"
+                                ).readlines()[3] != "element vertex 0\n")
+            df = df[df["filter"]]
             df = df.sort_values(by="start_frame")
             return df
 
@@ -1527,13 +1534,6 @@ class Kitti360DataPublisher:
                                     "data_3d_semantics/train",
                                     self.SEQUENCE_DIRECTORY, "dynamic",
                                     cand["filename"].iloc[0])
-            else:
-                path = None
-
-            # check if files for frames exist and is non empty
-            if path is not None and open(path, encoding="ISO-8859-1").read(
-            ).splitlines()[3] != "element vertex 0":
-
                 if not self.filename_3d_semantics_dynamic == path:
                     df = PyntCloud.from_file(path).points
                     self.records_3d_semantics_dynamic = df.to_records(
@@ -1586,13 +1586,6 @@ class Kitti360DataPublisher:
                                     "data_3d_semantics/train",
                                     self.SEQUENCE_DIRECTORY, "static",
                                     cand["filename"].iloc[0])
-            else:
-                path = None
-
-            # check if files for frames exist and is non empty
-            if path is not None and open(path, encoding="ISO-8859-1").read(
-            ).splitlines()[3] != "element vertex 0":
-
                 if not self.filename_3d_semantics_static == path:
                     df = PyntCloud.from_file(path).points
                     self.records_3d_semantics_static = df.to_records(
