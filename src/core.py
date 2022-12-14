@@ -218,7 +218,7 @@ class Kitti360DataPublisher:
 
         padding = 17
         rospy.loginfo(
-            "+--------------------------------------------------------------------+"
+            "+----------------------------------------------------------------------+"
         )
         rospy.loginfo(f"{'node':<{padding}} {self.NODENAME}")
 
@@ -243,7 +243,7 @@ class Kitti360DataPublisher:
             self.SEQUENCE_DIRECTORY = f"2013_05_28_drive_{self.SEQUENCE}_sync"
             rospy.loginfo(f"{'sequence:':<{padding}} {self.SEQUENCE}")
             rospy.loginfo(
-                "+--------------------------------------------------------------------+"
+                "+----------------------------------------------------------------------+"
             )
 
         self.DATA_DIRECTORY = rospy.get_param("kitti360_player/directory", "")
@@ -1637,45 +1637,44 @@ class Kitti360DataPublisher:
     # ------------------------------------------
     # COMMAND LINE INTERFACE
     def print_help(self):
-        rospy.loginfo(
-            "+------------------------------------------------------------------------+"
-        )
-        rospy.loginfo(
-            "| key mapping for simulation control via terminal                        |"
-        )
-        rospy.loginfo(
-            "|    *       : print this                                                |"
-        )
-        rospy.loginfo(
-            "|    s       : step to next VELODYNE frame (skips 3 SICK frames)         |"
-        )
-        rospy.loginfo(
-            "|    S       : step to previous VELODYNE frame  (skips 3 SICK frames)    |"
-        )
-        rospy.loginfo(
-            "|    d       : step to next SICK frame                                   |"
-        )
-        rospy.loginfo(
-            "|    D       : step to previous SICK frame                               |"
-        )
-        rospy.loginfo(
-            "|    <space> : pause/unpause simulation                                  |"
-        )
-        rospy.loginfo(
-            "|    k       : increase playback speed factor by 0.1                     |"
-        )
-        rospy.loginfo(
-            "|    j       : decrease playback speed factor by 0.1                     |"
-        )
-        rospy.loginfo(
-            "|    [0-9]   : seek to x0% of simulation (e.g. 6 -> 60%)                 |"
-        )
-        rospy.loginfo(
-            "|    b       : print duration of each publishing step                    |"
-        )
-        rospy.loginfo(
-            "+------------------------------------------------------------------------+"
-        )
+        desc = {
+            "*": "print this",
+            "s": "step to next VELODYNE frame (skips 3 SICK frames)",
+            "S": "step to previous VELODYNE frame  (skips 3 SICK frames)",
+            "d": "step to next SICK frame",
+            "D": "step to previous SICK frame",
+            "<space>": "pause/unpause simulation",
+            "k": "increase playback speed factor by 0.1",
+            "j": "decrease playback speed factor by 0.1",
+            "[0-9]": "seek to x0% of simulation (e.g. 6 -> 60%)",
+            "b": "print duration of each publishing step",
+        }
+
+        # determine width of both columns
+        margin = 2
+        key_col_width = max(map(len, desc.keys()))
+        desc_col_width = max(map(len, desc.values()))
+        # +3 for colon and |
+        # 4*margin because we apply margin before and each of # the two colunms
+        total_width = (key_col_width + desc_col_width + 3 + margin * 4)
+
+        end_line = "+" + "-" * (total_width - 2) + "+"
+        rospy.loginfo(end_line)
+        rospy.loginfo("|  KEY MAPPINGS".ljust(total_width - 1) + "|")
+
+        for key, desc in desc.items():
+            s = "|"
+            s += ' ' * margin
+            s += key.ljust(key_col_width)
+            s += ' ' * margin
+            s += ":"
+            s += ' ' * margin
+            s += desc.ljust(desc_col_width)
+            s += ' ' * margin
+            s += "|"
+            rospy.loginfo(s)
+
+        rospy.loginfo(end_line)
 
     def toggle_print_step_duration(self):
         self.print_step_duration = not self.print_step_duration
@@ -1844,7 +1843,8 @@ class Kitti360DataPublisher:
         if self.last_published_sick_frame > 0:
             # move simulation to next frame
             self._seek(
-                self.timestamps_sick_points.iloc[self.last_published_sick_frame - 1].to_sec())
+                self.timestamps_sick_points.iloc[self.last_published_sick_frame
+                                                 - 1].to_sec())
         else:
             rospy.loginfo(
                 "Can't step to previous sick frame. Simulation already on first frame."
