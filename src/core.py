@@ -112,6 +112,9 @@ class Kitti360DataPublisher:
     # data_3d_raw/2013_05_28_drive_{seq:0>4}_sync/sick_points/data/{frame:0>10}.bin
     ros_publisher_3d_raw_sick_points = None
     publish_sick_points = None
+    # data_3d_raw/2013_05_28_drive_{seq:0>4}_sync/velodyne_points_labeled/data/{frame:0>10}.bin
+    ros_publisher_3d_raw_velodyne_labeled = None
+    publish_velodyne_labeled = None
 
     # data_3d_semantics/train/2013_05_28_drive_{seq:0>4}_sync/static/{start_frame:0>10}_{end_frame:0>10}.ply
     ros_publisher_3d_semantics_static = None
@@ -201,6 +204,11 @@ class Kitti360DataPublisher:
     # be changed)
     print_step_duration = False
 
+    # total stats
+    total_number_of_frames_velodyne = None
+    total_number_of_frames_sick = None
+    total_simulation_time = None
+
     # ------------------------------------------
 
     def __init__(self):
@@ -213,7 +221,7 @@ class Kitti360DataPublisher:
 
         padding = 17
         rospy.loginfo(
-            "+--------------------------------------------------------------------+"
+            "+----------------------------------------------------------------------+"
         )
         rospy.loginfo(f"{'node':<{padding}} {self.NODENAME}")
 
@@ -238,7 +246,7 @@ class Kitti360DataPublisher:
             self.SEQUENCE_DIRECTORY = f"2013_05_28_drive_{self.SEQUENCE}_sync"
             rospy.loginfo(f"{'sequence:':<{padding}} {self.SEQUENCE}")
             rospy.loginfo(
-                "+--------------------------------------------------------------------+"
+                "+----------------------------------------------------------------------+"
             )
 
         self.DATA_DIRECTORY = rospy.get_param("kitti360_player/directory", "")
@@ -260,6 +268,8 @@ class Kitti360DataPublisher:
             "/kitti360_player/pub_velodyne")
         self.publish_sick_points = rospy.get_param(
             "/kitti360_player/pub_sick_points")
+        self.publish_velodyne_labeled = rospy.get_param(
+            "/kitti360_player/pub_velodyne_labeled")
         self.publish_perspective_rectified_left = rospy.get_param(
             "/kitti360_player/pub_perspective_rectified_left")
         self.publish_perspective_rectified_right = rospy.get_param(
@@ -299,6 +309,8 @@ class Kitti360DataPublisher:
         self.publish_camera_intrinsics = rospy.get_param(
             "/kitti360_player/pub_camera_intrinsics")
 
+        rospy.loginfo(
+            "Filling caches and preprocessing... this can take few seconds!")
         # ------------------------------------------
         # read timestamps for all data (multiple timestamps.txt)
         self.read_timestamps()
@@ -390,13 +402,17 @@ class Kitti360DataPublisher:
         if next_frame != -1 and next_frame != self.last_published_frame:
             skipped = next_frame - self.last_published_frame - 1
             logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
-            skipped_string = f"(skipping {skipped})"
+            if skipped >= 0:
+                skipped_string = f"(skipping {skipped})"
+            else:
+                skipped_string = "(backwards)"
+
             logfunc(
-                f"advancing to next VELODYNE synced frame" +
-                f" {skipped_string:<14}" +
+                f"new VELODYNE frame" + f" {skipped_string:<14}" +
                 f"{self._convert_frame_int_to_string(self.last_published_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
-                f"({self.sim_clock.clock.to_sec():.5f}s)")
+                f"({self.sim_clock.clock.to_sec():.2f}s, {((self.sim_clock.clock.to_sec()/self.total_simulation_time)*100):.1f}%)"
+            )
 
             # publish everything that is available
             sim_update_durations.update(
@@ -430,6 +446,7 @@ class Kitti360DataPublisher:
     def publish_available_data(self, frame):
         ret = dict()
         ret.update(self._publish_velodyne(frame))
+        ret.update(self._publish_velodyne_labeled(frame))
         ret.update(self._publish_transforms(frame))
         ret.update(self._publish_images(frame))
         ret.update(self._publish_bounding_boxes(frame))
@@ -559,6 +576,9 @@ class Kitti360DataPublisher:
         if self.publish_velodyne:
             self.ros_publisher_3d_raw_velodyne = rospy.Publisher(
                 "kitti360/cloud", PointCloud2, queue_size=1)
+        if self.publish_velodyne_labeled:
+            self.ros_publisher_3d_raw_velodyne_labeled = rospy.Publisher(
+                "kitti360/cloud_labeled", PointCloud2, queue_size=1)
         if self.publish_sick_points:
             self.ros_publisher_3d_raw_sick_points = rospy.Publisher(
                 "kitti360/sick_points", PointCloud2, queue_size=1)
@@ -723,6 +743,10 @@ class Kitti360DataPublisher:
                 os.path.join(self.DATA_DIRECTORY, "data_3d_raw",
                              self.SEQUENCE_DIRECTORY,
                              "velodyne_points/timestamps.txt"))
+            self.total_number_of_frames_velodyne = self.timestamps_velodyne.shape[
+                0]
+            self.total_simulation_time = self.timestamps_velodyne.iloc[
+                -1].to_sec()
         except FileNotFoundError:
             rospy.logerr("timestamps for velodyne not found. FATAL")
             rospy.signal_shutdown(
@@ -736,6 +760,12 @@ class Kitti360DataPublisher:
                 os.path.join(self.DATA_DIRECTORY, "data_3d_raw",
                              self.SEQUENCE_DIRECTORY,
                              "sick_points/timestamps.txt"))
+            self.total_number_of_frames_sick = self.timestamps_sick_points.shape[
+                0]
+            if self.timestamps_sick_points.iloc[-1].to_sec(
+            ) > self.total_simulation_time:
+                self.total_simulation_time = self.timestamps_sick_points.iloc[
+                    -1].to_sec()
         except FileNotFoundError:
             rospy.logerr("timestamps for sick points not found. Disabling.")
             self.publish_sick_points = False
@@ -812,9 +842,14 @@ class Kitti360DataPublisher:
 
         def _read_dir(p):
             # extract start and end frame from
-            df = pd.Series(os.listdir(folder_path)).to_frame(name="filename")
+            df = pd.Series(os.listdir(p)).to_frame(name="filename")
             df["start_frame"], df["end_frame"] = zip(*df["filename"].str.split(
                 '[_.]').str[:2].apply(lambda x: (int(x[0]), int(x[1]))))
+            # check if the files actually contain
+            df["filter"] = df["filename"].apply(
+                lambda fn: open(os.path.join(p, fn), encoding="ISO-8859-1"
+                                ).readlines()[3] != "element vertex 0\n")
+            df = df[df["filter"]]
             df = df.sort_values(by="start_frame")
             return df
 
@@ -863,13 +898,16 @@ class Kitti360DataPublisher:
         if self.last_published_sick_frame is not None:
             skipped = next_frame - self.last_published_sick_frame - 1
             logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
-            skipped_string = f"(skipping {skipped})"
+            if skipped >= 0:
+                skipped_string = f"(skipping {skipped})"
+            else:
+                skipped_string = "(backwards)"
             logfunc(
-                f"advancing to next SICK points frame" +
-                f" {skipped_string:<18}" +
+                f"new SICK frame" + f" {skipped_string:<18}" +
                 f"{self._convert_frame_int_to_string(self.last_published_sick_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
-                f"({self.sim_clock.clock.to_sec():.5f}s)")
+                f"({self.sim_clock.clock.to_sec():.2f}s, {((self.sim_clock.clock.to_sec()/self.total_simulation_time)*100):.1f}%)"
+            )
 
         # --------------------------------------------------
         # construct and publish sick points message
@@ -1369,6 +1407,65 @@ class Kitti360DataPublisher:
 
         return dict([("velodyne", time.time() - s)])
 
+    def _publish_velodyne_labeled(self, frame):
+        # if this is false either it was set or the data dir was not found in a
+        # previous attempt of this function
+        if not self.publish_velodyne_labeled:
+            return dict()
+
+        # for benchmarking
+        s = time.time()
+
+        # data_3d_raw/2013_05_28_drive_{seq:0>4}_sync/velodyne_points/data/{frame:0>10}.bin
+        data_path = os.path.join(self.DATA_DIRECTORY, "data_3d_raw",
+                                 self.SEQUENCE_DIRECTORY,
+                                 "velodyne_points_labeled")
+
+        if not os.path.exists(data_path):
+            rospy.logerr(
+                f"{data_path} does not exist. Disabling LABELED velodyne pointclouds."
+            )
+            self.publish_velodyne_labeled = False
+            return dict()
+
+        filepath = os.path.join(
+            data_path,
+            self._convert_frame_int_to_string(frame) + ".npy")
+        if os.path.exists(filepath):
+            points = np.load(filepath)
+        else:
+            return dict()
+
+        # PointCloud2 Message http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/PointCloud2.html
+        # Header http://docs.ros.org/en/lunar/api/std_msgs/html/msg/Header.html
+        # PointField http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/PointField.html
+        cloud_msg = PointCloud2()
+        cloud_msg.header.stamp = self.timestamps_velodyne.iloc[frame]
+        cloud_msg.header.frame_id = "map"
+        cloud_msg.header.seq = frame
+
+        # body
+        cloud_msg.height = points.shape[0]
+        cloud_msg.width = 1
+        cloud_msg.fields = [
+            PointField("x", 0, PointField.FLOAT32, 1),
+            PointField("y", 4, PointField.FLOAT32, 1),
+            PointField("z", 8, PointField.FLOAT32, 1),
+            PointField("intensity", 12, PointField.FLOAT32, 1),
+            PointField("ring", 16, PointField.UINT16, 1)
+        ]
+        # both True and False worked, so idk
+        cloud_msg.is_bigendian = False
+        cloud_msg.point_step = 18  # 4 * 4bytes (float32)
+        cloud_msg.row_step = 18  # a row is a point in our case
+        cloud_msg.data = points.tobytes()
+        cloud_msg.is_dense = True
+
+        # publish
+        self.ros_publisher_3d_raw_velodyne_labeled.publish(cloud_msg)
+
+        return dict([("velodyne labeled", time.time() - s)])
+
     def _publish_transforms(self, frame):
         # FIXME the pointcloud sometimes jumps out and back when playing at
         # full speed in RVIZ
@@ -1505,18 +1602,14 @@ class Kitti360DataPublisher:
                                     "data_3d_semantics/train",
                                     self.SEQUENCE_DIRECTORY, "dynamic",
                                     cand["filename"].iloc[0])
-            else:
-                path = None
-
-            # check if files for frames exist and is non empty
-            if path is not None and open(path, encoding="ISO-8859-1").read(
-            ).splitlines()[3] != "element vertex 0":
-
                 if not self.filename_3d_semantics_dynamic == path:
                     df = PyntCloud.from_file(path).points
                     self.records_3d_semantics_dynamic = df.to_records(
                         index=False).tobytes()
                     self.filename_3d_semantics_dynamic = path
+                    rospy.loginfo(
+                        f"loaded new batch of DYNAMIC 3d semantics: frames {cand['start_frame'].iloc[0]} to {cand['end_frame'].iloc[0]}"
+                    )
 
                 msg = PointCloud2()
                 msg.header.stamp = self.timestamps_velodyne.iloc[frame]
@@ -1564,18 +1657,14 @@ class Kitti360DataPublisher:
                                     "data_3d_semantics/train",
                                     self.SEQUENCE_DIRECTORY, "static",
                                     cand["filename"].iloc[0])
-            else:
-                path = None
-
-            # check if files for frames exist and is non empty
-            if path is not None and open(path, encoding="ISO-8859-1").read(
-            ).splitlines()[3] != "element vertex 0":
-
                 if not self.filename_3d_semantics_static == path:
                     df = PyntCloud.from_file(path).points
                     self.records_3d_semantics_static = df.to_records(
                         index=False).tobytes()
                     self.filename_3d_semantics_static = path
+                    rospy.loginfo(
+                        f"loaded new batch of STATIC 3d semantics: frames {cand['start_frame'].iloc[0]} to {cand['end_frame'].iloc[0]}"
+                    )
 
                 msg = PointCloud2()
                 msg.header.stamp = self.timestamps_velodyne.iloc[frame]
@@ -1615,39 +1704,44 @@ class Kitti360DataPublisher:
     # ------------------------------------------
     # COMMAND LINE INTERFACE
     def print_help(self):
-        rospy.loginfo(
-            "+--------------------------------------------------------------------+"
-        )
-        rospy.loginfo(
-            "| key mapping for simulation control via terminal                    |"
-        )
-        rospy.loginfo(
-            "|    *       : print this                                            |"
-        )
-        rospy.loginfo(
-            "|    s       : step to next frame by VELODYNE (skips 3 SICK frames)  |"
-        )
-        rospy.loginfo(
-            "|    d       : step to next frame by SICK                            |"
-        )
-        rospy.loginfo(
-            "|    <space> : pause/unpause simulation                              |"
-        )
-        rospy.loginfo(
-            "|    k       : increase playback speed factor by 0.1                 |"
-        )
-        rospy.loginfo(
-            "|    j       : decrease playback speed factor by 0.1                 |"
-        )
-        rospy.loginfo(
-            "|    [0-9]   : seek to x0% of simulation (e.g. 6 -> 60%)             |"
-        )
-        rospy.loginfo(
-            "|    b       : print duration of each publishing step                |"
-        )
-        rospy.loginfo(
-            "+--------------------------------------------------------------------+"
-        )
+        desc = {
+            "*": "print this",
+            "s": "step to next VELODYNE frame (skips 3 SICK frames)",
+            "S": "step to previous VELODYNE frame  (skips 3 SICK frames)",
+            "d": "step to next SICK frame",
+            "D": "step to previous SICK frame",
+            "<space>": "pause/unpause simulation",
+            "k": "increase playback speed factor by 0.1",
+            "j": "decrease playback speed factor by 0.1",
+            "[0-9]": "seek to x0% of simulation (e.g. 6 -> 60%)",
+            "b": "print duration of each publishing step",
+        }
+
+        # determine width of both columns
+        margin = 2
+        key_col_width = max(map(len, desc.keys()))
+        desc_col_width = max(map(len, desc.values()))
+        # +3 for colon and |
+        # 4*margin because we apply margin before and each of # the two colunms
+        total_width = (key_col_width + desc_col_width + 3 + margin * 4)
+
+        end_line = "+" + "-" * (total_width - 2) + "+"
+        rospy.loginfo(end_line)
+        rospy.loginfo("|  KEY MAPPINGS".ljust(total_width - 1) + "|")
+
+        for key, desc in desc.items():
+            s = "|"
+            s += ' ' * margin
+            s += key.ljust(key_col_width)
+            s += ' ' * margin
+            s += ":"
+            s += ' ' * margin
+            s += desc.ljust(desc_col_width)
+            s += ' ' * margin
+            s += "|"
+            rospy.loginfo(s)
+
+        rospy.loginfo(end_line)
 
     def toggle_print_step_duration(self):
         self.print_step_duration = not self.print_step_duration
@@ -1670,7 +1764,9 @@ class Kitti360DataPublisher:
             lambda: (self.print_help), {
                 " ": self.toggle_pause,
                 "s": self.step_by_velodyne,
+                "S": self.step_backwards_by_velodyne,
                 "d": self.step_by_sick,
+                "D": self.step_backwards_by_sick,
                 "k": self.increase_playback_speed,
                 "j": self.decrease_playback_speed,
                 "0": seek_0,
@@ -1764,6 +1860,24 @@ class Kitti360DataPublisher:
 
         return []
 
+    def step_backwards_by_velodyne(self, _=None):
+        """ jumps to previous velodyne frame"""
+
+        # first pause if not paused
+        self.pause()
+
+        # check if we are already at frame 0
+        if self.last_published_frame > 0:
+            self._seek(
+                self.timestamps_velodyne.iloc[self.last_published_frame -
+                                              1].to_sec())
+        else:
+            rospy.loginfo(
+                "Can't step to previous velodyne frame. Simulation already on first frame."
+            )
+
+        return []
+
     def step_by_sick(self, _=None):
         """ jumps to next available sick frame"""
 
@@ -1782,6 +1896,25 @@ class Kitti360DataPublisher:
         else:
             rospy.loginfo(
                 "Can't advance to next sick frame. Simulation is at last frame."
+            )
+
+        return []
+
+    def step_backwards_by_sick(self, _=None):
+        """ jumps to previous frame"""
+
+        # first pause, then step
+        self.pause()
+
+        # looks for timestamp of the next available frame
+        if self.last_published_sick_frame > 0:
+            # move simulation to next frame
+            self._seek(
+                self.timestamps_sick_points.iloc[self.last_published_sick_frame
+                                                 - 1].to_sec())
+        else:
+            rospy.loginfo(
+                "Can't step to previous sick frame. Simulation already on first frame."
             )
 
         return []

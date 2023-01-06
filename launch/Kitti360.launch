@@ -20,6 +20,7 @@
 
     <!-- what data to show/load/publish or not - if disabled here, will also not be loaded into RAM -->
     <arg name="pub_velodyne"                        default="True"   doc="velodyne pointcloud" />
+    <arg name="pub_velodyne_labeled"                default="True"   doc="velodyne pointcloud labeled" />
     <arg name="pub_sick_points"                     default="True"   doc="sick points" />
     <arg name="pub_perspective_rectified_left"      default="True"   doc="images of left perspective camera" />
     <arg name="pub_perspective_rectified_right"     default="True"   doc="images of right perspective camera" />
@@ -42,6 +43,7 @@
     <arg name="pub_camera_intrinsics"               default="True"   doc="camera intrinsics" />
 
     <param name="/kitti360_player/pub_velodyne"                       value="$(arg pub_velodyne)" />
+    <param name="/kitti360_player/pub_velodyne_labeled"               value="$(arg pub_velodyne_labeled)" />
     <param name="/kitti360_player/pub_sick_points"                    value="$(arg pub_sick_points)" />
     <param name="/kitti360_player/pub_perspective_rectified_left"     value="$(arg pub_perspective_rectified_left)" />
     <param name="/kitti360_player/pub_perspective_rectified_right"    value="$(arg pub_perspective_rectified_right)" />
@@ -70,20 +72,20 @@
     <!-- format: x-offset y-offset z-offset yaw(z) pitch(y) roll(x) (offset in meters, angles in radians)-->
     <node pkg="tf2_ros" type="static_transform_publisher" 
         name="gpsimu_to_velodyne" 
-        args="0.81 0.32 -0.83 0 0 3.14159265359 kitti360_gpsimu kitti360_velodyne " />
+        args="0.771049336280387 0.29854143649499193 -0.8362802189143268 0.005805702483432155 -0.010400477715954315 3.1385789123483367 kitti360_gpsimu kitti360_velodyne " />
     <node pkg="tf2_ros" type="static_transform_publisher" 
         name="gps_imu_to_cam_00" 
-        args="1.60 0.02 -0.65 0 4.71238898038 4.71238898038 kitti360_gpsimu kitti360_cam_00" />
+        args="1.5752681039 0.0043914093 -0.65 1.5336079011307413 -0.009062306194569603 1.4722861590356016 kitti360_gpsimu kitti360_cam_00" />
     <node pkg="tf2_ros" type="static_transform_publisher" 
         name="gps_imu_to_cam_01" 
-        args="1.60 0.62 -0.65 0 4.71238898038 4.71238898038 kitti360_gpsimu kitti360_cam_01" />
+        args="1.59772414 0.59814949 -0.6488433108 1.5513935815559334 -0.012189496048847337 1.465665239810155 kitti360_gpsimu kitti360_cam_01" />
     <node pkg="tf2_ros" type="static_transform_publisher" 
         name="gps_imu_to_cam_02" 
-        args="0.73 0.78 -1.05 0 3.14159265359 4.71238898038 kitti360_gpsimu kitti360_cam_02" />
+        args="0.7264036936 -0.1499658517 -1.0686400091 -0.030797759202523006 0.003816106215825954 1.5606129768859012 kitti360_gpsimu kitti360_cam_02" />
     <node pkg="tf2_ros" type="static_transform_publisher" 
         name="gps_imu_to_cam_03" 
-        args="0.73 -0.14 -1.05 0 0 4.71238898038 kitti360_gpsimu kitti360_cam_03" />
+        args="0.7016842127 0.746365095 -1.0751978255 -3.1163865971589724 -0.0005898708748186543 1.5715637852794497 kitti360_gpsimu kitti360_cam_03" />
     <node pkg="tf2_ros" type="static_transform_publisher"
         name="gps_imu_to_sick_points"
-        args="0.41 0.32 -0.79 0 0 3.14159265359 kitti360_gpsimu kitti360_sick_points" />
+        args="0.37316600787178855 0.3055298485560259 -0.7697157028904089 -0.007457061564034061 0.0021829398882018403 3.125319333492234 kitti360_gpsimu kitti360_sick_points" />
 </launch>

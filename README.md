@@ -43,9 +43,24 @@ present. Everything else is optional.
 Below you can see how the simulation may look like in rviz. Both
 perspective and fisheye cameras as well as the velodyne pointcloud and the
 derived bounding boxes are visualized. Note that the size of the pointcloud
-markers is increased by a factor of 10 for this screenshot.
+markers is increased by a factor of 5 for this screenshot.
 
-![RVIZ Example](doc/rviz_demo.png)
+![RVIZ example with bounding boxes](doc/rviz_demo.png)
+
+## Labeled Velodyne pointclouds
+
+We provide script (`scripts/label_velodyne`) which labels the velodyne
+pointcloud using the semantic 3d data provided by KITTI-360. 
+
+For each point in velodyne pointcloud frame we take the closest point in the 3d
+semantics dataset within 20cm radius and take its semantic label. If no point
+is found the point is marked as unlabeled. The obtained label is saved to the
+ring field.
+
+This labeled pointcloud is also published if available. An example can be seen
+in the following screenshot.
+
+![RVIZ example with bounding boxes](doc/labeled_pointcloud_demo.png)
 
 ## Usage Guide
 
@@ -192,6 +207,10 @@ position data.
 * **3D Semantics and Bounding Boxes**: The ranges specified in the filenames overlap in most cases (~15 frames). If we have the choice between two ranges we publish the one with the highest range, i.e., prefer 90-150 over 50-100 when the current frame is 95.
 * **Bounding Boxes**: static and dynamic bounding boxes are handled the same way at the moment. This may need to be changed. The custom bounding box message contains a bool that represents whether it is dynamic or static.
 * **3D Semantics**: 3d semantics are accumulated to a range of frames in KITTI360. If there is no pointcloud for a given frame range then we publish nothing.
+* **Backwards Simulation and RVIZ**: when going backwards in time, either by stepping or seeking, the
+  visualization in rviz may not be correct. For example, when displaying the TF
+  tree in rviz it only shows the latest transform but not the most recently
+  published.
 
 ## Acknowledgements
 
