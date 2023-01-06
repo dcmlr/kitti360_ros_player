@@ -130,7 +130,8 @@ def main():
                     current_semantic_points = PyntCloud.from_file(
                         os.path.join(semantics_path, sem_filename)).points
                     current_semantic_kdtree = KDTree(
-                        current_semantic_points[["x", "y", "z"]])
+                        current_semantic_points[["x", "y", "z"]],
+                        metric="euclidean")
                     current_semantic_points_IDs = current_semantic_points[
                         "semantic"].copy()
                     # if point is not found we call iloc[-1] and then the last line is chosen
