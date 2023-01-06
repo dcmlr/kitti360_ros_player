@@ -114,13 +114,10 @@ def main():
                                             trans_velo_to_imu)
 
             # apply transformation to each point
-            # NOTE possible performance improvement
             points_copy = points.copy()
             points_copy[:, 3] = 1
-            points[:, :3] = np.apply_along_axis(
-                lambda p: np.matmul(trans_velo_to_world, p),
-                axis=1,
-                arr=points_copy)[:, :3]
+            points[:, :3] = np.matmul(trans_velo_to_world,
+                                      points_copy.T).T[:, :3]
 
             # load semantics file from drive or cache
             cand = df_sem[(df_sem["start_frame"] <= frame)
@@ -144,15 +141,15 @@ def main():
 
             # determine ring values
             # returns distance and index of respective closest point
-            dist, ind = current_semantic_kdtree.query(
-                    X=points[:, :3],
-                    k=1,
-                    return_distance=True,
-                    dualtree=False,
-                    sort_results=False)
+            dist, ind = current_semantic_kdtree.query(X=points[:, :3],
+                                                      k=1,
+                                                      return_distance=True,
+                                                      dualtree=False,
+                                                      sort_results=False)
             # get index of point if within SEARCH_RADIUS and otherwise use -1
             # (last value in current_semantic_point_IDs is 0=undefined)
-            chosen_semantic_indices = np.where(dist.squeeze() < SEARCH_RADIUS, ind.squeeze(), -1)
+            chosen_semantic_indices = np.where(dist.squeeze() < SEARCH_RADIUS,
+                                               ind.squeeze(), -1)
 
             # retrieve actual points based on selected indices
             labels = np.array([
