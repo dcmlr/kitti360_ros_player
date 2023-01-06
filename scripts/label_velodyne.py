@@ -45,8 +45,7 @@ SKIP_EXISTING = False
 
 
 def main():
-    for sequence_dir in ["2013_05_28_drive_0000_sync"]:
-        # for sequence_dir in os.listdir(RAW_3D_DIR):
+    for sequence_dir in os.listdir(RAW_3D_DIR):
         print(f"{sequence_dir=}")
         path_in = os.path.join(RAW_3D_DIR, sequence_dir,
                                "velodyne_points/data")
