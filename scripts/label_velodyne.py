@@ -25,7 +25,6 @@ from sklearn.neighbors import KDTree
 from pyntcloud import PyntCloud
 import numpy as np
 import pandas as pd
-
 """
 This script generates new folders in the data_3d_raw directory that then
 contain the velodyne pointclouds, but with a ring value that represents the
@@ -42,11 +41,12 @@ SEMANTIC_DIR = os.path.join(KITTI360_DIR, "data_3d_semantics", "train")
 POSES_DIR = os.path.join(KITTI360_DIR, "data_poses")
 SEARCH_RADIUS = 0.2
 
-SKIP_EXISTING = True
+SKIP_EXISTING = False
 
 
 def main():
-    for sequence_dir in os.listdir(RAW_3D_DIR):
+    for sequence_dir in ["2013_05_28_drive_0000_sync"]:
+        # for sequence_dir in os.listdir(RAW_3D_DIR):
         print(f"{sequence_dir=}")
         path_in = os.path.join(RAW_3D_DIR, sequence_dir,
                                "velodyne_points/data")
@@ -93,28 +93,31 @@ def main():
             points = np.fromfile(os.path.join(path_in, frame_filename),
                                  dtype=np.float32).reshape(-1, 4)
 
-            # shift points to gpsimu according to car layout
-            points[:, 0] = points[:, 0] + 0.81
-            points[:, 1] = points[:, 1] - 0.32
-            points[:, 2] = points[:, 2] + 0.83
-
-            # rotate
-            # x does not change
-            # y is inverted
-            # z is inverted
-            points[:, 1] = (-1) * points[:, 1]
-            points[:, 2] = (-1) * points[:, 2]
+            # extracted from transform.py
+            trans_velo_to_imu = np.array(
+                [[0.99992906, 0.0057743, 0.01041756, 0.77104934],
+                 [0.00580536, -0.99997879, -0.00295331, 0.29854144],
+                 [0.01040029, 0.00301357, -0.99994137, -0.83628022],
+                 [0, 0, 0, 1]])
 
             # get latest possible pose to transform velodyne points
             temp_frame = frame if frame > 0 else 1
-            tf_matrix = poses.loc[poses.index[poses.index <= temp_frame][-1]]
+            trans_imu_to_world = poses.loc[poses.index[
+                poses.index <= temp_frame][-1]]
+            trans_imu_to_world = np.vstack(
+                [trans_imu_to_world,
+                 np.array([0, 0, 0, 1])])
 
-            # rotate and then translate
+            # this is the transform from velo -> world
+            trans_velo_to_world = np.matmul(trans_imu_to_world,
+                                           trans_velo_to_imu)
+
+            # apply transformation to each point
             # NOTE possible performance improvement
-            points[:, :3] = np.apply_along_axis(
-                lambda p: np.matmul(tf_matrix[:, :3], p) + tf_matrix[:, 3],
-                axis=1,
-                arr=points[:, :3])
+            points[:, :3] = np.apply_along_axis(lambda p: np.matmul(
+                trans_velo_to_world, np.hstack([p, [1]]))[:3],
+                                                axis=1,
+                                                arr=points[:, :3])
 
             # load semantics file from drive or cache
             cand = df_sem[(df_sem["start_frame"] <= frame)
