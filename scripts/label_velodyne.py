@@ -143,17 +143,18 @@ def main():
                 continue
 
             # determine ring values
-            # at index i in indices we get the index of the closest labeled point
-            indices, _ = current_semantic_kdtree.query_radius(
-                points[:, :3],
-                r=SEARCH_RADIUS,
-                return_distance=True,
-                sort_results=True)
+            # returns distance and index of respective closest point
+            dist, ind = current_semantic_kdtree.query(
+                    X=points[:, :3],
+                    k=1,
+                    return_distance=True,
+                    dualtree=False,
+                    sort_results=False)
+            # get index of point if within SEARCH_RADIUS and otherwise use -1
+            # (last value in current_semantic_point_IDs is 0=undefined)
+            chosen_semantic_indices = np.where(dist.squeeze() < SEARCH_RADIUS, ind.squeeze(), -1)
 
-            # get label for closest semantic point if there is one, otherwise label (0 = undefined)
-            chosen_semantic_indices = [
-                chosen[0] if chosen.size > 0 else -1 for chosen in indices
-            ]
+            # retrieve actual points based on selected indices
             labels = np.array([
                 current_semantic_points_IDs.iloc[chosen_semantic_indices].
                 to_numpy()
