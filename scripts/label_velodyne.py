@@ -69,6 +69,7 @@ def main():
         current_semantic_filename = None
         current_semantic_kdtree = None
         current_semantic_points = None
+        current_semantic_points_IDs = None
 
         # read poses for current sequence
         poses = pd.read_csv(os.path.join(POSES_DIR, sequence_dir, "poses.txt"),
@@ -110,14 +111,16 @@ def main():
 
             # this is the transform from velo -> world
             trans_velo_to_world = np.matmul(trans_imu_to_world,
-                                           trans_velo_to_imu)
+                                            trans_velo_to_imu)
 
             # apply transformation to each point
             # NOTE possible performance improvement
-            points[:, :3] = np.apply_along_axis(lambda p: np.matmul(
-                trans_velo_to_world, np.hstack([p, [1]]))[:3],
-                                                axis=1,
-                                                arr=points[:, :3])
+            points_copy = points.copy()
+            points_copy[:, 3] = 1
+            points[:, :3] = np.apply_along_axis(
+                lambda p: np.matmul(trans_velo_to_world, p),
+                axis=1,
+                arr=points_copy)[:, :3]
 
             # load semantics file from drive or cache
             cand = df_sem[(df_sem["start_frame"] <= frame)
@@ -131,28 +134,30 @@ def main():
                         os.path.join(semantics_path, sem_filename)).points
                     current_semantic_kdtree = KDTree(
                         current_semantic_points[["x", "y", "z"]])
+                    current_semantic_points_IDs = current_semantic_points[
+                        "semantic"].copy()
+                    # if point is not found we call iloc[-1] and then the last line is chosen
+                    current_semantic_points_IDs["default"] = 0
             else:
                 print(f"skipping {frame=}, no static semantic 3d data")
                 continue
 
             # determine ring values
+            # at index i in indices we get the index of the closest labeled point
             indices, _ = current_semantic_kdtree.query_radius(
                 points[:, :3],
                 r=SEARCH_RADIUS,
                 return_distance=True,
                 sort_results=True)
-            # get label for choses point
-            labels = []
-            for chosen in indices:
-                if len(chosen) == 0:
-                    # if no points found --> unlabeled
-                    labels.append(0)
-                else:
-                    # otherwise chose closest
-                    labels.append(
-                        current_semantic_points["semantic"].iloc[chosen[0]])
-            # make it a pretty column
-            labels = np.array([labels]).T
+
+            # get label for closest semantic point if there is one, otherwise label (0 = undefined)
+            chosen_semantic_indices = [
+                chosen[0] if chosen.size > 0 else -1 for chosen in indices
+            ]
+            labels = np.array([
+                current_semantic_points_IDs.iloc[chosen_semantic_indices].
+                to_numpy()
+            ]).T
 
             # add ring values to points
             points = np.append(points, labels, axis=1)
