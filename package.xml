@@ -66,6 +66,9 @@
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
 
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
   <depend>dynamic_reconfigure</depend>
 
   <!-- The export tag contains other, unspecified, tags -->

@@ -1,19 +1,26 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(kitti360_publisher)
 
+<export>
+  <build_type>ament_cmake</build_type>
+</export>
+
+
+set(CMAKE_CXX_STANDARD 14)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
+
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  rosgraph_msgs
-  sensor_msgs
-  std_msgs
-  message_generation
-)
+find_package(ament_cmake REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rosgraph_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(message_generation REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -48,16 +55,6 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
-## Generate messages in the 'msg' folder
-add_message_files(
-    FILES
-    Kitti360BoundingBox.msg
-    Kitti360Confidence.msg
-    Kitti360InstanceID.msg
-    Kitti360SemanticID.msg
-    Kitti360SemanticRGB.msg
-)
-
 ## Generate services in the 'srv' folder
 # add_service_files(
 #   FILES
@@ -73,7 +70,12 @@ add_message_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
+rosidl_generate_interfaces(${PROJECT_NAME}
+    Kitti360BoundingBox.msg
+    Kitti360Confidence.msg
+    Kitti360InstanceID.msg
+    Kitti360SemanticID.msg
+    Kitti360SemanticRGB.msg
     DEPENDENCIES
     geometry_msgs
 )
@@ -108,15 +110,10 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 
-catkin_package(
-    CATKIN_DEPENDS message_runtime
-)
+ament_export_dependencies(message_runtime)
+ament_export_dependencies(dynamic_reconfigure)
+ament_package(CONFIG_EXTRAS)
 
-catkin_package(
-    INCLUDE_DIRS 
-    CATKIN_DEPENDS
-    dynamic_reconfigure
-)
 
 ###########
 ## Build ##
