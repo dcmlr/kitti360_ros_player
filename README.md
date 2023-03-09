@@ -6,6 +6,13 @@ in ROS. The simulation can be paused, speed up, and one can step frame by frame.
 
 If you have comments or questions please contact clemens.mosig@fu-berlin.de.
 
+Many thanks to Panagiotis Grigoriadis for creating a port to ROS2, which can be
+found in the `ros2` branch.
+For questions about the ROS2 version please contact Panos via pgrigor22@gmail.com. If you
+encounter any issues, please check his
+[fork](https://github.com/gitglob/kitti360_ros2_player) as some changes may
+have not been merged yet.
+
 ## Quick Start
 
 **Installation:** Clone this repository, install python dependencies with `pip
