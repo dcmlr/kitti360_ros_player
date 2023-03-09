@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<package format="3">
+    <name>kitti360_publisher</name>
+    <version>0.0.0</version>
+    <description>The kitti360_publisher package</description>
+
+    <maintainer email="clemens.mosig@fu-berlin.de">Clemens Mosig</maintainer>
+
+    <license>BSD</license>
+
+    <url type="website">https://www.autonomos-labs.de/</url>
+
+    <exec_depend>rclpy</exec_depend>
+
+    <!-- custom messages -->
+    <exec_depend>kitti360_msgs</exec_depend>
+    
+    <!-- package dependencies -->
+    <depend>visualization_msgs</depend>
+    <depend>geometry_msgs</depend>
+    <depend>rosgraph_msgs</depend>
+    <depend>sensor_msgs</depend>
+    <depend>std_msgs</depend>
+
+    <build_depend>message_generation</build_depend>
+    <exec_depend>message_runtime</exec_depend>
+
+    <depend>dynamic_reconfigure</depend>
+
+    <exec_depend>tf_transformations</exec_depend>
+
+    <exec_depend>ros2launch</exec_depend>
+
+    <test_depend>ament_lint_auto</test_depend>
+    <test_depend>ament_lint_common</test_depend>
+    <export>
+        <build_type>ament_python</build_type>
+    </export>
+</package>
