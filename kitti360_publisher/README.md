@@ -1,13 +1,12 @@
 # ROS2 publisher node for the KITTI-360 Dataset
 
-This is the ROS 2 version of the ROS kitti-360 publisher developped by Clemens Mosig here: https://github.com/dcmlr/kitti360_ros_player .
+**UNDER DEVELOPMENT AND DOES NOT YET WORK**
 
-This ROS 2 package takes each sensor from the
+This ROS package takes each sensor from the
 [KITTI-360](http://www.cvlibs.net/datasets/kitti-360/) dataset and publishes it
-in ROS 2. The simulation can be paused, speed up, and one can step frame by frame.
+in ROS. The simulation can be paused, speed up, and one can step frame by frame.
 
-If you have comments or questions about the package please contact clemens.mosig@fu-berlin.de .
-If you have comments about the conversion from ROS to ROS 2 please contact pgrigor22@gmail.com .
+If you have comments or questions please contact clemens.mosig@fu-berlin.de.
 
 ## Quick Start
 

@@ -6,8 +6,8 @@ string category
 float32 level_min
 float32 level_max
 bool dynamic
-uint32 dynamicSeq
-uint32 dynamicIdx
+uint32 dynamic_seq
+uint32 dynamic_idx
 
 # transform to the map/world frame
 std_msgs/Float32MultiArray transform

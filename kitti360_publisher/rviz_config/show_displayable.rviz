@@ -54,7 +54,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /kitti360/2d/fisheye/left
+      Image Topic: /kitti360_2d/fisheye/left
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -66,7 +66,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /kitti360/2d/perspective/rectified_left
+      Image Topic: /kitti360_2d/perspective/rectified_left
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -78,7 +78,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /kitti360/2d/fisheye/right
+      Image Topic: /kitti360_2d/fisheye/right
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -90,7 +90,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /kitti360/2d/perspective/rectified_right
+      Image Topic: /kitti360_2d/perspective/rectified_right
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -102,7 +102,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /kitti360/3d/bounding_boxes_rviz_marker
+      Marker Topic: /kitti360_3d/bounding_boxes_rviz_marker
       Name: Bounding Boxes
       Namespaces:
         373: true

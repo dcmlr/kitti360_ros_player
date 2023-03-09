@@ -199,7 +199,7 @@ def assureSingleInstanceName( name ):
 #--------------------------------------------------------------------------------
 
 # just a dummy main
-if __name__ == "__main__":
+def main():
     # Print all the labels
     print("List of KITTI-360 labels:")
     print("")
@@ -225,4 +225,7 @@ if __name__ == "__main__":
     trainId = 0
     name = trainId2label[trainId].name
     print("Name of label with trainID '{id}': {name}".format( id=trainId, name=name ))
+
+if __name__ == "__main__":
+    main()
 

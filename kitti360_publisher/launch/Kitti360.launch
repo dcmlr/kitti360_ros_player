@@ -66,7 +66,7 @@
     <param name="/kitti360_player/pub_camera_intrinsics"              value="$(arg pub_camera_intrinsics)" />
 
     <!-- the actual simulation node -->
-    <node pkg="kitti360_publisher" name="kitti360_publisher" type="core.py" output="screen"/>
+    <node pkg="kitti360_publisher" name="kitti360_publisher" type="kitti360_publisher_node.py" output="screen"/>
 
     <!-- static transforms -->
     <!-- format: x-offset y-offset z-offset yaw(z) pitch(y) roll(x) (offset in meters, angles in radians)-->

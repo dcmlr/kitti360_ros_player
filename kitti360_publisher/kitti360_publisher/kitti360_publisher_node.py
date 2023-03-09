@@ -19,19 +19,25 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import rospy
+# import rospy
+import rclpy
+import rclpy.logging as logging
+from rclpy.duration import Duration
+from rclpy.node import Node
 from pyntcloud import PyntCloud
 import sys
 import threading
 import termios
 import fcntl
+from datetime import timedelta
 from math import sin, cos, tan, pi, sqrt
-from tf import transformations
+from tf_transformations import quaternion_from_matrix
 import imageio
 import time
 import os
 import numpy as np
 import pandas as pd
+from std_msgs.msg import Header
 from sensor_msgs.msg import PointCloud2, PointField, Image, CameraInfo, RegionOfInterest
 from std_msgs.msg import Int16MultiArray, Float32MultiArray, MultiArrayLayout, MultiArrayDimension, ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
@@ -41,12 +47,12 @@ import tf2_ros
 from collections import defaultdict
 import xmltodict
 import itertools
-from kitti360_publisher.msg import Kitti360BoundingBox, Kitti360SemanticID, Kitti360SemanticRGB, Kitti360InstanceID, Kitti360Confidence
-from labels import id2label, name2label
+from kitti360_msgs.msg import Kitti360BoundingBox, Kitti360SemanticID, Kitti360SemanticRGB, Kitti360InstanceID, Kitti360Confidence
+from .labels import id2label, name2label
+from rcl_interfaces.msg import ParameterType
 
-
-class Kitti360DataPublisher:
-    NODENAME = "kitti360_publisher"
+class Kitti360DataPublisher(Node):
+    NODENAME = "publisher_node"
     DESIRED_RATE = 100  # Hz
 
     # Data paths
@@ -212,104 +218,118 @@ class Kitti360DataPublisher:
     # ------------------------------------------
 
     def __init__(self):
-        # init ros node
-        rospy.init_node(self.NODENAME)
+        super().__init__(self.NODENAME)
 
-        rospy.loginfo("   ___ ___ ___ ___   _   _   _             _   _   __")
-        rospy.loginfo("|/  |   |   |   | __ _) |_  / \   o ._    |_) / \ (_ ")
-        rospy.loginfo("|\ _|_  |   |  _|_   _) |_) \_/   | | |   | \ \_/ __)")
+        # declare parameters
+        self.declare_parameter('/use_sim_time', True),
+        self.declare_parameter('/kitti360_player/rate', 1),
+        self.declare_parameter('/kitti360_player/looping', True),
+        self.declare_parameter('/kitti360_player/start', 0),
+        self.declare_parameter('/kitti360_player/end', 99999999),
+        self.declare_parameter('/kitti360_player/sequence', 0),
+        self.declare_parameter('/kitti360_player/directory', ''),
+        self.declare_parameter('/kitti360_player/pub_velodyne', True),
+        self.declare_parameter('/kitti360_player/pub_velodyne_labeled', True),
+        self.declare_parameter('/kitti360_player/pub_sick_points', True),
+        self.declare_parameter('/kitti360_player/pub_perspective_rectified_left', True),
+        self.declare_parameter('/kitti360_player/pub_perspective_rectified_right', True),
+        self.declare_parameter('/kitti360_player/pub_perspective_unrectified_left', True),
+        self.declare_parameter('/kitti360_player/pub_perspective_unrectified_right', True),
+        self.declare_parameter('/kitti360_player/pub_fisheye_left', True),
+        self.declare_parameter('/kitti360_player/pub_fisheye_right', True),
+        self.declare_parameter('/kitti360_player/pub_bounding_boxes', True),
+        self.declare_parameter('/kitti360_player/pub_bounding_boxes_rviz_marker', True),
+        self.declare_parameter('/kitti360_player/pub_2d_semantics_left', True),
+        self.declare_parameter('/kitti360_player/pub_2d_semantics_right', True),
+        self.declare_parameter('/kitti360_player/pub_2d_semantics_rgb_left', True),
+        self.declare_parameter('/kitti360_player/pub_2d_semantics_rgb_right', True),
+        self.declare_parameter('/kitti360_player/pub_2d_instance_left', True),
+        self.declare_parameter('/kitti360_player/pub_2d_instance_right', True),
+        self.declare_parameter('/kitti360_player/pub_2d_confidence_left', True),
+        self.declare_parameter('/kitti360_player/pub_2d_confidence_right', True),
+        self.declare_parameter('/kitti360_player/pub_3d_semantics_static', True),
+        self.declare_parameter('/kitti360_player/pub_3d_semantics_dynamic', True),
+        self.declare_parameter('/kitti360_player/pub_camera_intrinsics', True)
+        
+        self.logger = self.get_logger()
+        self.warning_logger = self.get_logger()
+        self.warning_logger.set_level(rclpy.logging.LoggingSeverity.WARN)
+
+        self.logger.info("   ___ ___ ___ ___   _   _   _             _   _   __   _")
+        self.logger.info("|/  |   |   |   | __ _) |_  / \   o ._    |_) / \ (_   |_|")
+        self.logger.info("|\ _|_  |   |  _|_   _) |_) \_/   | | |   | \ \_/ __)   /_")
 
         padding = 17
-        rospy.loginfo(
+        self.logger.info(
             "+----------------------------------------------------------------------+"
         )
-        rospy.loginfo(f"{'node':<{padding}} {self.NODENAME}")
+        self.logger.info(f"{'node':<{padding}} {self.NODENAME}")
 
         # ------------------------------------------
         # get configuration parameters
-        self.SIM_START = rospy.get_param("/kitti360_player/start", 0)
-        rospy.loginfo(f"{'start:':<{padding}} {self.SIM_START}")
-        self.SIM_END = rospy.get_param("/kitti360_player/end", 99999999)
-        rospy.loginfo(f"{'end:':<{padding}} {self.SIM_END}")
-        self.sim_playback_speed = rospy.get_param("/kitti360_player/rate", 1)
-        rospy.loginfo(
+        self.SIM_START = self.get_parameter("/kitti360_player/start").get_parameter_value().integer_value
+        self.logger.info(f"{'start:':<{padding}} {self.SIM_START}")
+        self.SIM_END = self.get_parameter("/kitti360_player/end").get_parameter_value().integer_value
+        self.logger.info(f"{'end:':<{padding}} {self.SIM_END}")
+        self.sim_playback_speed = self.get_parameter("/kitti360_player/rate").get_parameter_value().integer_value
+        self.logger.info(
             f"{'speed multiplier:':<{padding}} {self.sim_playback_speed}")
 
-        self.SEQUENCE = rospy.get_param("/kitti360_player/sequence", 0)
+        self.SEQUENCE = self.get_parameter("/kitti360_player/sequence").get_parameter_value().integer_value
         if not (self.SEQUENCE >= 0 and self.SEQUENCE <= 10):
-            rospy.logerr(
+            self.logger.error(
                 "sequence ({self.SEQUENCE=}) needs to be 0 <= x <= 10. FATAL")
-            rospy.signal_shutdown("sequence number is invalid")
+            rclpy.shutdown("sequence number is invalid")
             exit()
         else:
             self.SEQUENCE = '{:04d}'.format(self.SEQUENCE)
             self.SEQUENCE_DIRECTORY = f"2013_05_28_drive_{self.SEQUENCE}_sync"
-            rospy.loginfo(f"{'sequence:':<{padding}} {self.SEQUENCE}")
-            rospy.loginfo(
+            self.logger.info(f"{'sequence:':<{padding}} {self.SEQUENCE}")
+            self.logger.info(
                 "+----------------------------------------------------------------------+"
             )
 
-        self.DATA_DIRECTORY = rospy.get_param("kitti360_player/directory", "")
+        self.DATA_DIRECTORY = self.get_parameter("/kitti360_player/directory").get_parameter_value().string_value
         if self.DATA_DIRECTORY == "" or not os.path.exists(
                 self.DATA_DIRECTORY):
-            rospy.logerr(
+            self.logger.error(
                 f"Directory does not exist: {self.DATA_DIRECTORY}. FATAL.")
-            rospy.logerr(
+            self.logger.error(
                 "Note that the directory has to be specified as absolute path."
             )
-            rospy.signal_shutdown("provided data directory is invalid")
+            rclpy.shutdown()
             exit()
+        else:
+            self.logger.info(f"Loading data from: {self.DATA_DIRECTORY} .")
 
-        self.sim_looping = rospy.get_param("kitti360_player/looping", True)
+        self.sim_looping = self.get_parameter("/kitti360_player/looping").get_parameter_value().bool_value
 
         # ------------------------------------------
         # what to enable/disable
-        self.publish_velodyne = rospy.get_param(
-            "/kitti360_player/pub_velodyne")
-        self.publish_sick_points = rospy.get_param(
-            "/kitti360_player/pub_sick_points")
-        self.publish_velodyne_labeled = rospy.get_param(
-            "/kitti360_player/pub_velodyne_labeled")
-        self.publish_perspective_rectified_left = rospy.get_param(
-            "/kitti360_player/pub_perspective_rectified_left")
-        self.publish_perspective_rectified_right = rospy.get_param(
-            "/kitti360_player/pub_perspective_rectified_right")
-        self.publish_perspective_unrectified_left = rospy.get_param(
-            "/kitti360_player/pub_perspective_unrectified_left")
-        self.publish_perspective_unrectified_right = rospy.get_param(
-            "/kitti360_player/pub_perspective_unrectified_right")
-        self.publish_fisheye_left = rospy.get_param(
-            "/kitti360_player/pub_fisheye_left")
-        self.publish_fisheye_right = rospy.get_param(
-            "/kitti360_player/pub_fisheye_right")
-        self.publish_bounding_boxes = rospy.get_param(
-            "/kitti360_player/pub_bounding_boxes")
-        self.publish_bounding_boxes_rviz_marker = rospy.get_param(
-            "/kitti360_player/pub_bounding_boxes_rviz_marker")
-        self.publish_semantics_semantic_left = rospy.get_param(
-            "/kitti360_player/pub_2d_semantics_left")
-        self.publish_semantics_semantic_right = rospy.get_param(
-            "/kitti360_player/pub_2d_semantics_right")
-        self.publish_semantics_semantic_rgb_left = rospy.get_param(
-            "/kitti360_player/pub_2d_semantics_rgb_left")
-        self.publish_semantics_semantic_rgb_right = rospy.get_param(
-            "/kitti360_player/pub_2d_semantics_rgb_right")
-        self.publish_semantics_instance_left = rospy.get_param(
-            "/kitti360_player/pub_2d_instance_left")
-        self.publish_semantics_instance_right = rospy.get_param(
-            "/kitti360_player/pub_2d_instance_right")
-        self.publish_semantics_confidence_left = rospy.get_param(
-            "/kitti360_player/pub_2d_confidence_left")
-        self.publish_semantics_confidence_right = rospy.get_param(
-            "/kitti360_player/pub_2d_confidence_right")
-        self.publish_3d_semantics_static = rospy.get_param(
-            "/kitti360_player/pub_3d_semantics_static")
-        self.publish_3d_semantics_dynamic = rospy.get_param(
-            "/kitti360_player/pub_3d_semantics_dynamic")
-        self.publish_camera_intrinsics = rospy.get_param(
-            "/kitti360_player/pub_camera_intrinsics")
+        self.publish_velodyne = self.get_parameter("/kitti360_player/pub_velodyne").get_parameter_value().bool_value
+        self.publish_sick_points = self.get_parameter("/kitti360_player/pub_sick_points").get_parameter_value().bool_value
+        self.publish_velodyne_labeled = self.get_parameter("/kitti360_player/pub_velodyne_labeled").get_parameter_value().bool_value
+        self.publish_perspective_rectified_left = self.get_parameter("/kitti360_player/pub_perspective_rectified_left").get_parameter_value().bool_value
+        self.publish_perspective_rectified_right = self.get_parameter("/kitti360_player/pub_perspective_rectified_right").get_parameter_value().bool_value
+        self.publish_perspective_unrectified_left = self.get_parameter("/kitti360_player/pub_perspective_unrectified_left").get_parameter_value().bool_value
+        self.publish_perspective_unrectified_right = self.get_parameter("/kitti360_player/pub_perspective_unrectified_right").get_parameter_value().bool_value
+        self.publish_fisheye_left = self.get_parameter("/kitti360_player/pub_fisheye_left").get_parameter_value().bool_value
+        self.publish_fisheye_right = self.get_parameter("/kitti360_player/pub_fisheye_right").get_parameter_value().bool_value
+        self.publish_bounding_boxes = self.get_parameter("/kitti360_player/pub_bounding_boxes").get_parameter_value().bool_value
+        self.publish_bounding_boxes_rviz_marker = self.get_parameter("/kitti360_player/pub_bounding_boxes_rviz_marker").get_parameter_value().bool_value
+        self.publish_semantics_semantic_left = self.get_parameter("/kitti360_player/pub_2d_semantics_left").get_parameter_value().bool_value
+        self.publish_semantics_semantic_right = self.get_parameter("/kitti360_player/pub_2d_semantics_right").get_parameter_value().bool_value
+        self.publish_semantics_semantic_rgb_left = self.get_parameter("/kitti360_player/pub_2d_semantics_rgb_left").get_parameter_value().bool_value
+        self.publish_semantics_semantic_rgb_right = self.get_parameter("/kitti360_player/pub_2d_semantics_rgb_right").get_parameter_value().bool_value
+        self.publish_semantics_instance_left = self.get_parameter("/kitti360_player/pub_2d_instance_left").get_parameter_value().bool_value
+        self.publish_semantics_instance_right = self.get_parameter("/kitti360_player/pub_2d_instance_right").get_parameter_value().bool_value
+        self.publish_semantics_confidence_left = self.get_parameter("/kitti360_player/pub_2d_confidence_left").get_parameter_value().bool_value
+        self.publish_semantics_confidence_right = self.get_parameter("/kitti360_player/pub_2d_confidence_right").get_parameter_value().bool_value
+        self.publish_3d_semantics_static = self.get_parameter("/kitti360_player/pub_3d_semantics_static").get_parameter_value().bool_value
+        self.publish_3d_semantics_dynamic = self.get_parameter("/kitti360_player/pub_3d_semantics_dynamic").get_parameter_value().bool_value
+        self.publish_camera_intrinsics = self.get_parameter("/kitti360_player/pub_camera_intrinsics").get_parameter_value().bool_value
 
-        rospy.loginfo(
+        self.logger.info(
             "Filling caches and preprocessing... this can take few seconds!")
         # ------------------------------------------
         # read timestamps for all data (multiple timestamps.txt)
@@ -351,20 +371,20 @@ class Kitti360DataPublisher:
     # ------------------------------------------
     # MAIN LOOP
     def run(self):
-        rospy.loginfo("starting simulation")
+        self.logger.info("starting simulation")
 
         # start simulation immediately
         self.unpause()
 
-        while not rospy.is_shutdown():
+        while rclpy.ok():
 
             # store so that we know how long to sleep to match DESIRED_RATE
             system_time_loop_start = time.time()
 
             if not self.sim_paused and self._on_last_frame():
-                rospy.loginfo("END OF SEQUENCE!")
+                self.logger.info("END OF SEQUENCE!")
                 if self.sim_looping:
-                    rospy.loginfo("Looping enabled --> back to start")
+                    self.logger.info("Looping enabled --> back to start")
                     self._seek(self.SIM_START)
                 else:
                     self.pause()
@@ -385,10 +405,9 @@ class Kitti360DataPublisher:
         # update simulation clock based on when the simulation was last
         # resumed
         # --> (ts when sim was resumed) + (timedelta since then it was resumed)
-        self.sim_clock.clock = rospy.Time.from_sec(
-            self.sim_to_resume_at +
-            (time.time() - self.system_time_simulation_resumed) *
-            self.sim_playback_speed)
+        _ = self.sim_to_resume_at + (time.time() - self.system_time_simulation_resumed) * self.sim_playback_speed
+        # self.sim_clock.clock = rospy.Time.from_sec(_)
+        self.sim_clock.clock = rclpy.time.Time(seconds=_).to_msg()
 
         # for benchmarking
         sim_update_durations = dict()
@@ -401,7 +420,8 @@ class Kitti360DataPublisher:
         # using != instead of > to make seeking easier
         if next_frame != -1 and next_frame != self.last_published_frame:
             skipped = next_frame - self.last_published_frame - 1
-            logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
+            # logfunc = rospy.logwarn if skipped > 0 else self.logger.info
+            logfunc = self.warning_logger.warning if skipped > 0 else self.logger.info
             if skipped >= 0:
                 skipped_string = f"(skipping {skipped})"
             else:
@@ -411,7 +431,7 @@ class Kitti360DataPublisher:
                 f"new VELODYNE frame" + f" {skipped_string:<14}" +
                 f"{self._convert_frame_int_to_string(self.last_published_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
-                f"({self.sim_clock.clock.to_sec():.2f}s, {((self.sim_clock.clock.to_sec()/self.total_simulation_time)*100):.1f}%)"
+                f"({self.sim_clock.clock.sec:.2f}s, {((self.sim_clock.clock.sec/self.total_simulation_time)*100):.1f}%)"
             )
 
             # publish everything that is available
@@ -424,19 +444,19 @@ class Kitti360DataPublisher:
             # for benchmarking --> how long each step took
             padding = 26
             if self.print_step_duration:
-                rospy.loginfo(
+                self.logger.info(
                     "-------------------------------------------------------")
                 total = sum(sim_update_durations.values())
                 # print sorted by the duration
                 for name, duration in sorted(sim_update_durations.items(),
                                              key=lambda x: x[1],
                                              reverse=True):
-                    rospy.loginfo(
+                    self.logger.info(
                         f"{name:<{padding}} = {duration:.3f}s ({((duration/total)*100):.1f}%)"
                     )
-                rospy.loginfo(f"{'':<{padding}} ----------------")
-                rospy.loginfo(f"{'total':<{padding}} = {total:.3f}s")
-                rospy.loginfo(
+                self.logger.info(f"{'':<{padding}} ----------------")
+                self.logger.info(f"{'total':<{padding}} = {total:.3f}s")
+                self.logger.info(
                     "-------------------------------------------------------")
         elif next_frame == -1:
             # --> simulation timestamp is before first frame
@@ -460,59 +480,58 @@ class Kitti360DataPublisher:
     def init_and_publish_camera_intrinsics(self):
         # CAM 00 (Perspective Left)
         ci_msg_00 = CameraInfo()
-        ci_msg_00.header.seq = 0
         # not sure what to put here. doc says acquisition time of image
-        ci_msg_00.header.stamp = rospy.Time(0)
+        ci_msg_00.header.stamp = rclpy.time.Time().to_msg()
+        
         ci_msg_00.header.frame_id = "kitti360_cam_00"
 
         ci_msg_00.width = 1392
         ci_msg_00.height = 512
 
         ci_msg_00.distortion_model = "plumb_bob"
-        ci_msg_00.K = [[788.629315, 0.000000, 687.158398],
-                       [0.000000, 786.382230, 317.752196],
-                       [0.000000, 0.000000, 0.000000]]
+        ci_msg_00.k = [788.629315, 0.000000, 687.158398,
+                       0.000000, 786.382230, 317.752196,
+                       0.000000, 0.000000, 0.000000]
 
-        ci_msg_00.D = [-0.344441, 0.141678, 0.000414, -0.000222, -0.029608]
+        ci_msg_00.d = [-0.344441, 0.141678, 0.000414, -0.000222, -0.029608]
 
         # NOTE this could be wrong, we are not sure. Please check
         # calibrations/perspective.txt
-        ci_msg_00.R = [[1.000000, 0.000000, 0.000000],
-                       [0.000000, 1.000000, 0.000000],
-                       [0.000000, 0.000000, 1.000000]]
+        ci_msg_00.r = [1.000000, 0.000000, 0.000000,
+                       0.000000, 1.000000, 0.000000,
+                       0.000000, 0.000000, 1.000000]
 
-        ci_msg_00.P = [[552.554261, 0.000000, 682.049453, 0.000000],
-                       [0.000000, 552.554261, 238.769549, 0.000000],
-                       [0.000000, 0.000000, 1.000000, 0.000000]]
+        ci_msg_00.p = [552.554261, 0.000000, 682.049453, 0.000000,
+                       0.000000, 552.554261, 238.769549, 0.000000,
+                       0.000000, 0.000000, 1.000000, 0.000000]
 
         self.ros_publisher_camera_intrinsics_unrectified_left.publish(
             ci_msg_00)
 
         # CAM 01 (Pespective Right)
         ci_msg_01 = CameraInfo()
-        ci_msg_01.header.seq = 0
-        ci_msg_01.header.stamp = rospy.Time(0)
+        ci_msg_01.header.stamp = rclpy.time.Time().to_msg()
         ci_msg_01.header.frame_id = "kitti360_cam_01"
 
         ci_msg_01.width = 1392
         ci_msg_01.height = 512
 
         ci_msg_01.distortion_model = "plumb_bob"
-        ci_msg_01.K = [[785.134093, 0.000000, 686.437073],
-                       [0.000000, 782.346289, 321.352788],
-                       [0.000000, 0.000000, 0.000000]]
+        ci_msg_01.k = [785.134093, 0.000000, 686.437073,
+                       0.000000, 782.346289, 321.352788,
+                       0.000000, 0.000000, 0.000000]
 
-        ci_msg_01.D = [-0.353195, 0.161996, 0.000383, -0.000242, -0.041476]
+        ci_msg_01.d = [-0.353195, 0.161996, 0.000383, -0.000242, -0.041476]
 
         # NOTE this could be wrong, we are not sure. Please check
         # calibrations/perspective.txt
-        ci_msg_01.R = [[0.999837, 0.004862, -0.017390],
-                       [-0.004974, 0.999967, -0.006389],
-                       [0.017358, 0.006474, 0.999828]]
+        ci_msg_01.r = [0.999837, 0.004862, -0.017390,
+                       -0.004974, 0.999967, -0.006389,
+                       0.017358, 0.006474, 0.999828]
 
-        ci_msg_01.P = [[552.554261, 0.000000, 682.049453, -328.318735],
-                       [0.000000, 552.554261, 238.769549, 0.000000],
-                       [0.000000, 0.000000, 1.000000, 0.000000]]
+        ci_msg_01.p = [552.554261, 0.000000, 682.049453, -328.318735,
+                       0.000000, 552.554261, 238.769549, 0.000000,
+                       0.000000, 0.000000, 1.000000, 0.000000]
 
         self.ros_publisher_camera_intrinsics_unrectified_right.publish(
             ci_msg_01)
@@ -525,158 +544,116 @@ class Kitti360DataPublisher:
 
         # CAM 02 (Fisheye Left)
         ci_msg_02 = CameraInfo()
-        ci_msg_02.header.seq = 0
-        ci_msg_02.header.stamp = rospy.Time(0)
+        ci_msg_02.header.stamp = rclpy.time.Time().to_msg()
         ci_msg_02.header.frame_id = "kitti360_cam_02"
 
         ci_msg_02.width = 1400
         ci_msg_02.height = 1400
 
         ci_msg_02.distortion_model = "plumb_bob"
-        ci_msg_02.K = [[
-            1.3363220825849971e+03, 0.000000, 7.1694323510126321e+02
-        ], [0.000000, 1.3357883350012958e+03, 7.0576498308221585e+02],
-                       [0.000000, 0.000000, 0.000000]]
+        ci_msg_02.k = [1.3363220825849971e+03, 0.000000, 7.1694323510126321e+02,
+                       0.000000, 1.3357883350012958e+03, 7.0576498308221585e+02,
+                       0.000000, 0.000000, 0.000000]
 
         # NOTE: setting k3 = 0 because is was not supplied in calibrations/image_02.yaml
-        ci_msg_02.D = [
-            1.6798235660113681e-02, 1.6548773243373522e+00,
-            4.2223943394772046e-04, 4.2462134260997584e-04, 0
-        ]
-
+        ci_msg_02.d = [1.6798235660113681e-02, 1.6548773243373522e+00,
+                       4.2223943394772046e-04, 4.2462134260997584e-04, 0.0]
+        
         self.ros_publisher_camera_intrinsics_fisheye_left.publish(ci_msg_02)
 
         # CAM 03 (Fisheye Right)
         ci_msg_03 = CameraInfo()
-        ci_msg_03.header.seq = 0
-        ci_msg_03.header.stamp = rospy.Time(0)
+        ci_msg_03.header.stamp = rclpy.time.Time().to_msg()
         ci_msg_03.header.frame_id = "kitti360_cam_03"
 
         ci_msg_03.width = 1400
         ci_msg_03.height = 1400
 
         ci_msg_03.distortion_model = "plumb_bob"
-        ci_msg_03.K = [[
-            1.4854388981875156e+03, 0.000000, 6.9888316784030962e+02
-        ], [0.000000, 1.4849477411748708e+03, 6.9814541887723055e+02],
-                       [0.000000, 0.000000, 0.000000]]
+        ci_msg_03.k = [1.4854388981875156e+03, 0.000000, 6.9888316784030962e+02,
+                       0.000000, 1.4849477411748708e+03, 6.9814541887723055e+02,
+                       0.000000, 0.000000, 0.000000]
 
         # NOTE: setting k3 = 0 because is was not supplied in calibrations/image_03.yaml
-        ci_msg_03.D = [
-            4.9370396274089505e-02, 4.5068455478645308e+00,
-            1.3477698472982495e-03, -7.0340482615055284e-04, 0
-        ]
+        ci_msg_03.d = [4.9370396274089505e-02, 4.5068455478645308e+00,
+                       1.3477698472982495e-03, -7.0340482615055284e-04, 0.0]
 
         self.ros_publisher_camera_intrinsics_fisheye_right.publish(ci_msg_03)
 
     def init_publishers(self):
-        self.ros_publisher_clock = rospy.Publisher("clock",
-                                                   Clock,
-                                                   queue_size=10)
+        self.ros_publisher_clock = self.create_publisher(Clock, "clock", 10)
         if self.publish_velodyne:
-            self.ros_publisher_3d_raw_velodyne = rospy.Publisher(
-                "kitti360/cloud", PointCloud2, queue_size=1)
+            self.ros_publisher_3d_raw_velodyne = self.create_publisher(
+                PointCloud2, "kitti360/cloud", 1)
         if self.publish_velodyne_labeled:
-            self.ros_publisher_3d_raw_velodyne_labeled = rospy.Publisher(
-                "kitti360/cloud_labeled", PointCloud2, queue_size=1)
+            self.ros_publisher_3d_raw_velodyne_labeled = self.create_publisher(
+                PointCloud2, "kitti360/cloud_labeled", 1)
         if self.publish_sick_points:
-            self.ros_publisher_3d_raw_sick_points = rospy.Publisher(
-                "kitti360/sick_points", PointCloud2, queue_size=1)
+            self.ros_publisher_3d_raw_sick_points = self.create_publisher(
+                PointCloud2, "kitti360/sick_points", 1)
         if self.publish_perspective_rectified_left:
-            self.ros_publisher_2d_raw_perspective_rectified_left = rospy.Publisher(
-                "kitti360/2d/perspective/rectified_left", Image, queue_size=1)
+            self.ros_publisher_2d_raw_perspective_rectified_left = self.create_publisher(
+                Image, "kitti360_2d/perspective/rectified_left", 1)
         if self.publish_perspective_rectified_right:
-            self.ros_publisher_2d_raw_perspective_rectified_right = rospy.Publisher(
-                "kitti360/2d/perspective/rectified_right", Image, queue_size=1)
+            self.ros_publisher_2d_raw_perspective_rectified_right = self.create_publisher(
+                Image, "kitti360_2d/perspective/rectified_right", 1)
         if self.publish_perspective_unrectified_left:
-            self.ros_publisher_2d_raw_perspective_unrectified_left = rospy.Publisher(
-                "kitti360/2d/perspective/unrectified_left",
-                Image,
-                queue_size=1)
+            self.ros_publisher_2d_raw_perspective_unrectified_left = self.create_publisher(
+                Image, "kitti360_2d/perspective/unrectified_left", 1)
         if self.publish_perspective_unrectified_right:
-            self.ros_publisher_2d_raw_perspective_unrectified_right = rospy.Publisher(
-                "kitti360/2d/perspective/unrectified_right",
-                Image,
-                queue_size=1)
+            self.ros_publisher_2d_raw_perspective_unrectified_right = self.create_publisher(
+                Image, "kitti360_2d/perspective/unrectified_right", 1)
         if self.publish_fisheye_left:
-            self.ros_publisher_2d_raw_fisheye_left = rospy.Publisher(
-                "kitti360/2d/fisheye/left", Image, queue_size=1)
+            self.ros_publisher_2d_raw_fisheye_left = self.create_publisher(
+                Image, "kitti360_2d/fisheye/left", 1)
         if self.publish_fisheye_right:
-            self.ros_publisher_2d_raw_fisheye_right = rospy.Publisher(
-                "kitti360/2d/fisheye/right", Image, queue_size=1)
+            self.ros_publisher_2d_raw_fisheye_right = self.create_publisher(
+                Image, "kitti360_2d/fisheye/right", 1)
         if self.publish_camera_intrinsics:
-            self.ros_publisher_camera_intrinsics_unrectified_left = rospy.Publisher(
-                "kitti360/2d/perspective/unrectified_left_camera_info",
-                CameraInfo,
-                queue_size=1)
-            self.ros_publisher_camera_intrinsics_unrectified_right = rospy.Publisher(
-                "kitti360/2d/perspective/unrectified_right_camera_info",
-                CameraInfo,
-                queue_size=1)
-            self.ros_publisher_camera_intrinsics_fisheye_left = rospy.Publisher(
-                "kitti360/2d/fisheye/unrectified_left_camera_info",
-                CameraInfo,
-                queue_size=1)
-            self.ros_publisher_camera_intrinsics_fisheye_right = rospy.Publisher(
-                "kitti360/2d/fisheye/unrectified_right_camera_info",
-                CameraInfo,
-                queue_size=1)
+            self.ros_publisher_camera_intrinsics_unrectified_left = self.create_publisher(
+                CameraInfo, "kitti360_2d/perspective/unrectified_left_camera_info", 1)
+            self.ros_publisher_camera_intrinsics_unrectified_right = self.create_publisher(
+                CameraInfo, "kitti360_2d/perspective/unrectified_right_camera_info", 1)
+            self.ros_publisher_camera_intrinsics_fisheye_left = self.create_publisher(
+                CameraInfo, "kitti360_2d/fisheye/unrectified_left_camera_info", 1)
+            self.ros_publisher_camera_intrinsics_fisheye_right = self.create_publisher(
+                CameraInfo, "kitti360_2d/fisheye/unrectified_right_camera_info", 1)
         if self.publish_bounding_boxes:
-            self.ros_publisher_bounding_boxes = rospy.Publisher(
-                "kitti360/3d/bounding_boxes",
-                Kitti360BoundingBox,
-                queue_size=1)
+            self.ros_publisher_bounding_boxes = self.create_publisher(
+                Kitti360BoundingBox, "kitti360_3d/bounding_boxes", 1)
         if self.publish_bounding_boxes_rviz_marker:
-            self.ros_publisher_bounding_boxes_rviz_marker = rospy.Publisher(
-                "kitti360/3d/bounding_boxes_rviz_marker",
-                MarkerArray,
-                queue_size=1)
+            self.ros_publisher_bounding_boxes_rviz_marker = self.create_publisher(
+                MarkerArray, "kitti360_3d/bounding_boxes_rviz_marker", 1)
         if self.publish_semantics_semantic_left:
-            self.ros_publisher_2d_semantics_semantic_left = rospy.Publisher(
-                "kitti360/2d/semantics/semantic_left",
-                Kitti360SemanticID,
-                queue_size=1)
+            self.ros_publisher_2d_semantics_semantic_left = self.create_publisher(
+                Kitti360SemanticID, "kitti360_2d/semantics/semantic_left", 1)
         if self.publish_semantics_semantic_right:
-            self.ros_publisher_2d_semantics_semantic_right = rospy.Publisher(
-                "kitti360/2d/semantics/semantic_right",
-                Kitti360SemanticID,
-                queue_size=1)
+            self.ros_publisher_2d_semantics_semantic_right = self.create_publisher(
+                Kitti360SemanticID, "kitti360_2d/semantics/semantic_right", 1)
         if self.publish_semantics_semantic_rgb_left:
-            self.ros_publisher_2d_semantics_semantic_rgb_left = rospy.Publisher(
-                "kitti360/2d/semantics/semantic_rgb_left",
-                Kitti360SemanticRGB,
-                queue_size=1)
+            self.ros_publisher_2d_semantics_semantic_rgb_left = self.create_publisher(
+                Kitti360SemanticRGB, "kitti360_2d/semantics/semantic_rgb_left", 1)
         if self.publish_semantics_semantic_rgb_right:
-            self.ros_publisher_2d_semantics_semantic_rgb_right = rospy.Publisher(
-                "kitti360/2d/semantics/semantic_rgb_right",
-                Kitti360SemanticRGB,
-                queue_size=1)
+            self.ros_publisher_2d_semantics_semantic_rgb_right = self.create_publisher(
+                Kitti360SemanticRGB, "kitti360_2d/semantics/semantic_rgb_right", 1)
         if self.publish_semantics_instance_left:
-            self.ros_publisher_2d_semantics_instance_left = rospy.Publisher(
-                "kitti360/2d/semantics/instance_left",
-                Kitti360InstanceID,
-                queue_size=1)
+            self.ros_publisher_2d_semantics_instance_left = self.create_publisher(
+                Kitti360InstanceID, "kitti360_2d/semantics/instance_left", 1)
         if self.publish_semantics_instance_right:
-            self.ros_publisher_2d_semantics_instance_right = rospy.Publisher(
-                "kitti360/2d/semantics/instance_right",
-                Kitti360InstanceID,
-                queue_size=1)
+            self.ros_publisher_2d_semantics_instance_right = self.create_publisher(
+                Kitti360InstanceID, "kitti360_2d/semantics/instance_right", 1)
         if self.publish_semantics_confidence_left:
-            self.ros_publisher_2d_semantics_confidence_left = rospy.Publisher(
-                "kitti360/2d/semantics/confidence_left",
-                Kitti360Confidence,
-                queue_size=1)
+            self.ros_publisher_2d_semantics_confidence_left = self.create_publisher(
+                Kitti360Confidence, "kitti360_2d/semantics/confidence_left", 1)
         if self.publish_semantics_confidence_right:
-            self.ros_publisher_2d_semantics_confidence_right = rospy.Publisher(
-                "kitti360/2d/semantics/confidence_right",
-                Kitti360Confidence,
-                queue_size=1)
+            self.ros_publisher_2d_semantics_confidence_right = self.create_publisher(
+                Kitti360Confidence, "kitti360_2d/semantics/confidence_right", 1)
         if self.publish_3d_semantics_static:
-            self.ros_publisher_3d_semantics_static = rospy.Publisher(
-                "kitti360/3d/semantics/static", PointCloud2, queue_size=1)
+            self.ros_publisher_3d_semantics_static = self.create_publisher(
+                PointCloud2, "kitti360_3d/semantics/static", 1)
         if self.publish_3d_semantics_dynamic:
-            self.ros_publisher_3d_semantics_dynamic = rospy.Publisher(
-                "kitti360/3d/semantics/dynamic", PointCloud2, queue_size=1)
+            self.ros_publisher_3d_semantics_dynamic = self.create_publisher(
+                PointCloud2, "kitti360_3d/semantics/dynamic", 1)
 
     def read_bounding_boxes(self):
         if not self.publish_bounding_boxes and not self.publish_bounding_boxes_rviz_marker:
@@ -729,13 +706,19 @@ class Kitti360DataPublisher:
             # resulting timestamps is the time that has passed from the
             # beginning of the in nanosecond precision
 
+            # return (
+            #     pd.to_datetime(
+            #         pd.read_csv(path, header=None).squeeze("columns")) -
+            #     begin_timestamp_sequence[self.SEQUENCE]
+            # ).apply(lambda t: rospy.Time(
+            #     secs=t.seconds, nsecs=(t.microseconds * 1000) + t.nanoseconds))
+
             return (
                 pd.to_datetime(
                     pd.read_csv(path, header=None).squeeze("columns")) -
                 begin_timestamp_sequence[self.SEQUENCE]
-            ).apply(lambda t: rospy.Time(
-                secs=t.seconds, nsecs=(t.microseconds * 1000) + t.nanoseconds))
-
+            ).apply(lambda t: rclpy.time.Time(seconds=t.seconds, nanoseconds=(t.microseconds * 1000) + t.nanoseconds).to_msg())
+        
         # VELODYNE POINTS
         # data_3d_raw/2013_05_28_drive_{seq:0>4}_sync/velodyne_points/timestamps.txt
         try:
@@ -743,13 +726,11 @@ class Kitti360DataPublisher:
                 os.path.join(self.DATA_DIRECTORY, "data_3d_raw",
                              self.SEQUENCE_DIRECTORY,
                              "velodyne_points/timestamps.txt"))
-            self.total_number_of_frames_velodyne = self.timestamps_velodyne.shape[
-                0]
-            self.total_simulation_time = self.timestamps_velodyne.iloc[
-                -1].to_sec()
+            self.total_number_of_frames_velodyne = self.timestamps_velodyne.shape[0]
+            self.total_simulation_time = self.timestamps_velodyne.iloc[-1].sec
         except FileNotFoundError:
-            rospy.logerr("timestamps for velodyne not found. FATAL")
-            rospy.signal_shutdown(
+            self.logger.error("timestamps for velodyne not found. FATAL")
+            rclpy.shutdown(
                 "cannot find velodyne timestamps --> need for execution")
             exit()
 
@@ -760,14 +741,11 @@ class Kitti360DataPublisher:
                 os.path.join(self.DATA_DIRECTORY, "data_3d_raw",
                              self.SEQUENCE_DIRECTORY,
                              "sick_points/timestamps.txt"))
-            self.total_number_of_frames_sick = self.timestamps_sick_points.shape[
-                0]
-            if self.timestamps_sick_points.iloc[-1].to_sec(
-            ) > self.total_simulation_time:
-                self.total_simulation_time = self.timestamps_sick_points.iloc[
-                    -1].to_sec()
+            self.total_number_of_frames_sick = self.timestamps_sick_points.shape[0]
+            if self.timestamps_sick_points.iloc[-1].sec > self.total_simulation_time:
+                self.total_simulation_time = self.timestamps_sick_points.iloc[-1].sec
         except FileNotFoundError:
-            rospy.logerr("timestamps for sick points not found. Disabling.")
+            self.logger.error("timestamps for sick points not found. Disabling.")
             self.publish_sick_points = False
 
         # PERSPECTIVE CAMERA (00/01)
@@ -778,7 +756,7 @@ class Kitti360DataPublisher:
                              self.SEQUENCE_DIRECTORY,
                              "image_00/timestamps.txt"))
         except FileNotFoundError:
-            rospy.logerr(
+            self.logger.error(
                 "timestamps for left perspective camera not found. Disabling.")
             self.publish_perspective_rectified_left = False
             self.publish_perspective_unrectified_left = False
@@ -788,7 +766,7 @@ class Kitti360DataPublisher:
                              self.SEQUENCE_DIRECTORY,
                              "image_01/timestamps.txt"))
         except FileNotFoundError:
-            rospy.logerr(
+            self.logger.error(
                 "timestamps for right perspective camera not found. Disabling."
             )
             self.publish_perspective_rectified_right = False
@@ -802,7 +780,7 @@ class Kitti360DataPublisher:
                              self.SEQUENCE_DIRECTORY,
                              "image_02/timestamps.txt"))
         except FileNotFoundError:
-            rospy.logerr(
+            self.logger.error(
                 "timestamps for left fisheye camera not found. Disabling.")
             self.publish_fisheye_left = False
 
@@ -812,7 +790,7 @@ class Kitti360DataPublisher:
                              self.SEQUENCE_DIRECTORY,
                              "image_03/timestamps.txt"))
         except FileNotFoundError:
-            rospy.logerr(
+            self.logger.error(
                 "timestamps for right fisheye camera not found. Disabling.")
             self.publish_fisheye_right = False
 
@@ -823,10 +801,10 @@ class Kitti360DataPublisher:
                                  self.SEQUENCE_DIRECTORY, "poses.txt")
 
         if not os.path.exists(data_path):
-            rospy.logerr(
+            self.logger.error(
                 f"Could not find poses.txt. File does not exist or is not in correct location (expected: {data_path}). FATAL"
             )
-            rospy.signal_shutdown("poses.txt does not exist but is required")
+            rclpy.shutdown("poses.txt does not exist but is required")
             exit()
 
         poses = pd.read_csv(data_path, sep=" ", header=None)
@@ -860,7 +838,7 @@ class Kitti360DataPublisher:
             if os.path.exists(folder_path):
                 self.bounds_3d_sem_static_index = _read_dir(folder_path)
             else:
-                rospy.logerr(
+                self.logger.error(
                     "Directory does not exist. Disabling 3d semantics static")
                 self.publish_3d_semantics_static = False
 
@@ -871,7 +849,7 @@ class Kitti360DataPublisher:
             if os.path.exists(folder_path):
                 self.bounds_3d_sem_dynamic_index = _read_dir(folder_path)
             else:
-                rospy.logerr(
+                self.logger.error(
                     "Directory does not exist. Disabling 3d semantics dynamic")
                 self.publish_3d_semantics_dynamic = False
 
@@ -886,8 +864,10 @@ class Kitti360DataPublisher:
         if not self.publish_sick_points:
             return dict()
 
-        next_frame = self.timestamps_sick_points.searchsorted(
-            self.sim_clock.clock) - 1
+        timestamps = pd.Series([t.sec + t.nanosec / 1e9 for t in self.timestamps_sick_points])
+        new_timestamp = self.sim_clock.clock.sec + self.sim_clock.clock.nanosec / 1e9
+        # next_frame = self.timestamps_sick_points.searchsorted(self.sim_clock.clock) - 1
+        next_frame = timestamps.searchsorted(new_timestamp) - 1
 
         # if we are before first frame or or frame that needs to be published
         # has already been published --> return
@@ -897,7 +877,8 @@ class Kitti360DataPublisher:
         # check if and how many frames we are skipping
         if self.last_published_sick_frame is not None:
             skipped = next_frame - self.last_published_sick_frame - 1
-            logfunc = rospy.logwarn if skipped > 0 else rospy.loginfo
+            # logfunc = rospy.logwarn if skipped > 0 else self.logger.info
+            logfunc = self.logger.warning if skipped > 0 else self.logger.info
             if skipped >= 0:
                 skipped_string = f"(skipping {skipped})"
             else:
@@ -906,7 +887,7 @@ class Kitti360DataPublisher:
                 f"new SICK frame" + f" {skipped_string:<18}" +
                 f"{self._convert_frame_int_to_string(self.last_published_sick_frame)}"
                 + f" -> {self._convert_frame_int_to_string(next_frame)} " +
-                f"({self.sim_clock.clock.to_sec():.2f}s, {((self.sim_clock.clock.to_sec()/self.total_simulation_time)*100):.1f}%)"
+                f"({self.sim_clock.clock.sec:.2f}s, {((self.sim_clock.clock.sec/self.total_simulation_time)*100):.1f}%)"
             )
 
         # --------------------------------------------------
@@ -917,7 +898,7 @@ class Kitti360DataPublisher:
                                  "data")
 
         if not os.path.exists(data_path):
-            rospy.logerr(f"{data_path} does not exist. Disabling sick points.")
+            self.logger.error(f"{data_path} does not exist. Disabling sick points.")
             self.publish_sick_points = False
             return dict()
 
@@ -940,15 +921,14 @@ class Kitti360DataPublisher:
         cloud_msg = PointCloud2()
         cloud_msg.header.stamp = self.timestamps_sick_points.iloc[next_frame]
         cloud_msg.header.frame_id = "kitti360_sick_points"
-        cloud_msg.header.seq = next_frame
 
         # body
         cloud_msg.height = pointcloud_bin.shape[0]
         cloud_msg.width = 1
         cloud_msg.fields = [
-            PointField("x", 0, PointField.FLOAT32, 1),
-            PointField("y", 4, PointField.FLOAT32, 1),
-            PointField("z", 8, PointField.FLOAT32, 1),
+            PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
         ]
         # both True and False worked, so idk
         cloud_msg.is_bigendian = False
@@ -975,8 +955,7 @@ class Kitti360DataPublisher:
 
         # NOTE ranges overlap a little bit ~15 frames
         # this code publishes the latest possible pointcloud (if there are two)
-        index = self.bounding_box_frame_ranges["start_frame"].searchsorted(
-            frame)
+        index = self.bounding_box_frame_ranges["start_frame"].searchsorted(frame)
         if index == self.previous_published_index_bb:
             return dict([("bounding boxes rviz marker", time.time() - s)])
         else:
@@ -1000,24 +979,22 @@ class Kitti360DataPublisher:
 
             transform_array_layout.dim = [dim0, dim1]
             transform_array_layout.data_offset = 0
+            data = bb_data[name]["data"]
             if bb_data[name]["dt"] == "u":
                 # assuming int16 is enoug
-                transform_array = Int16MultiArray()
                 np_dtype = np.int16
+                data = [np_dtype(i) for i in data.split()]
+                transform_array = Int16MultiArray(data=data, layout=transform_array_layout)
             elif bb_data[name]["dt"] == "f":
-                transform_array = Float32MultiArray()
                 np_dtype = np.float32
+                data = [np_dtype(i) for i in data.split()]
+                transform_array = Float32MultiArray(data=data, layout=transform_array_layout)
             else:
-                rospy.logerr(
+                self.logger.error(
                     f"Unknown datatype: {bb_data[name]['dt']} in bounding box field {name} | {index=} | {frame=}"
                 )
-                rospy.signal_shutdown("See previous error message")
+                rclpy.shutdown("See previous error message")
                 exit()
-
-            transform_array.data = np.fromstring(bb_data[name]["data"],
-                                                 sep=" ",
-                                                 dtype=np_dtype)
-            transform_array.layout = transform_array_layout
 
             return transform_array
 
@@ -1045,8 +1022,8 @@ class Kitti360DataPublisher:
             # NOTE we may need to do something different depending on whether
             # the bounding box is dynamic or not
             bb.dynamic = bool(bb_data["dynamic"])
-            bb.dynamicSeq = abs(int(bb_data["dynamicSeq"]))
-            bb.dynamicIdx = abs(int(bb_data["dynamicIdx"]))
+            bb.dynamic_seq = abs(int(bb_data["dynamicSeq"]))
+            bb.dynamic_idx = abs(int(bb_data["dynamicIdx"]))
 
             bb.transform = _get_multiarray("transform")
             bb.vertices = _get_multiarray("vertices")
@@ -1065,8 +1042,7 @@ class Kitti360DataPublisher:
 
         # NOTE ranges overlap a little bit ~15 frames
         # this code publishes the latest possible pointcloud (if there are two)
-        index = self.bounding_box_frame_ranges["start_frame"].searchsorted(
-            frame)
+        index = self.bounding_box_frame_ranges["start_frame"].searchsorted(frame)
         if index == self.previous_published_index_bb_rviz:
             return dict([("bounding boxes rviz marker", time.time() - s)])
         else:
@@ -1098,12 +1074,12 @@ class Kitti360DataPublisher:
             vertices_ros_point_format = []
             input_vertices = np.fromstring(
                 bb_data["vertices"]["data"], sep=" ",
-                dtype=np.float32).reshape(int(bb_data["vertices"]["rows"]),
+                dtype=float).reshape(int(bb_data["vertices"]["rows"]),
                                           int(bb_data["vertices"]["cols"]))
 
             input_transform = np.fromstring(bb_data["transform"]["data"],
                                             sep=" ",
-                                            dtype=np.float32).reshape(4, 4)
+                                            dtype=float).reshape(4, 4)
 
             input_faces = np.fromstring(bb_data["faces"]["data"],
                                         sep=" ",
@@ -1129,7 +1105,6 @@ class Kitti360DataPublisher:
             # create message
             marker_msg = Marker()
 
-            marker_msg.header.seq = bb_index
             marker_msg.header.stamp = self.timestamps_velodyne.iloc[frame]
             marker_msg.header.frame_id = "map"
 
@@ -1145,19 +1120,21 @@ class Kitti360DataPublisher:
             marker_msg.pose.position.z = input_transform[2, 3]
             # identity quaternion -> we apply the transformation already
             # directly to the points
-            marker_msg.pose.orientation.x = 0
-            marker_msg.pose.orientation.y = 0
-            marker_msg.pose.orientation.z = 0
-            marker_msg.pose.orientation.w = 1
+            marker_msg.pose.orientation.x = 0.0
+            marker_msg.pose.orientation.y = 0.0
+            marker_msg.pose.orientation.z = 0.0
+            marker_msg.pose.orientation.w = 1.0
 
             # --> original size
-            marker_msg.scale.x = 1
-            marker_msg.scale.y = 1
-            marker_msg.scale.z = 1
+            marker_msg.scale.x = 1.0
+            marker_msg.scale.y = 1.0
+            marker_msg.scale.z = 1.0
 
             # TODO maybe make this configurable or choose some better dynamic (?) number
             # right now --> just keeping it there "forever"
-            marker_msg.lifetime = rospy.Duration(secs=100000)
+            # marker_msg.lifetime = rospy.Duration(secs=100000)
+            duration = Duration(seconds=timedelta(seconds=100000).total_seconds()).to_msg()
+            marker_msg.lifetime = duration
 
             # TODO not sure
             marker_msg.frame_locked = True
@@ -1165,9 +1142,9 @@ class Kitti360DataPublisher:
             marker_msg.points = points_rviz_format
 
             # not transparent (is also not supported by the RVIZ)
-            marker_msg.color.a = 1
+            marker_msg.color.a = 1.0
             c = ColorRGBA()
-            c.a = 1
+            c.a = 1.0
 
             # some bounding box labels are not present in the labels.py file
             # provided by the KITTI-360 authors. Just for colors, we are
@@ -1189,16 +1166,13 @@ class Kitti360DataPublisher:
                 "vendingmachine": "vending machine"
             }
             if bb_data["label"] not in name2label:
-                c.r = name2label[missing_label_mapping[
-                    bb_data["label"]]].color[0]
-                c.g = name2label[missing_label_mapping[
-                    bb_data["label"]]].color[1]
-                c.b = name2label[missing_label_mapping[
-                    bb_data["label"]]].color[2]
+                c.r = float(name2label[missing_label_mapping[bb_data["label"]]].color[0])
+                c.g = float(name2label[missing_label_mapping[bb_data["label"]]].color[1])
+                c.b = float(name2label[missing_label_mapping[bb_data["label"]]].color[2])
             else:
-                c.r = name2label[bb_data["label"]].color[0]
-                c.g = name2label[bb_data["label"]].color[1]
-                c.b = name2label[bb_data["label"]].color[2]
+                c.r = float(name2label[bb_data["label"]].color[0])
+                c.g = float(name2label[bb_data["label"]].color[1])
+                c.b = float(name2label[bb_data["label"]].color[2])
             marker_msg.colors = [c] * len(points_rviz_format)
 
             marker_array.append(marker_msg)
@@ -1221,7 +1195,6 @@ class Kitti360DataPublisher:
             image_msg.is_bigendian = False
             image_msg.header.stamp = timestamp_ser.iloc[frame_index]
             image_msg.header.frame_id = frame_id
-            image_msg.header.seq = frame
 
             image_msg.width = width
             image_msg.height = height
@@ -1260,7 +1233,7 @@ class Kitti360DataPublisher:
                 durations["image_00_data_rect"] = time.time() - s
             elif self.publish_perspective_rectified_left:
                 self.publish_perspective_rectified_left = False
-                rospy.logerr(
+                self.logger.error(
                     f"Directory does not exist. Disabling camera perspective rectified left."
                 )
 
@@ -1278,7 +1251,7 @@ class Kitti360DataPublisher:
                 durations["image_01_data_rect"] = time.time() - s
             elif self.publish_perspective_rectified_right:
                 self.publish_perspective_rectified_right = False
-                rospy.logerr(
+                self.logger.error(
                     f"Directory does not exist. Disabling camera perspective rectified right."
                 )
 
@@ -1296,7 +1269,7 @@ class Kitti360DataPublisher:
                 durations["image_00_data_rgb"] = time.time() - s
             elif self.publish_perspective_unrectified_left:
                 self.publish_perspective_unrectified_left = False
-                rospy.logerr(
+                self.logger.error(
                     f"Directory does not exist. Disabling camera perspective unrectified left."
                 )
 
@@ -1314,7 +1287,7 @@ class Kitti360DataPublisher:
                 durations["image_01_data_rgb"] = time.time() - s
             elif self.publish_perspective_unrectified_right:
                 self.publish_perspective_unrectified_right = False
-                rospy.logerr(
+                self.logger.error(
                     f"Directory does not exist. Disabling camera perspective unrectified right."
                 )
 
@@ -1330,7 +1303,7 @@ class Kitti360DataPublisher:
                 durations["image_02_data_rgb"] = time.time() - s
             elif self.publish_fisheye_left:
                 self.publish_fisheye_left = False
-                rospy.logerr(
+                self.logger.error(
                     f"Directory does not exist. Disabling camera fisheye left."
                 )
 
@@ -1346,7 +1319,7 @@ class Kitti360DataPublisher:
                 durations["image_03_data_rgb"] = time.time() - s
             elif self.publish_fisheye_right:
                 self.publish_fisheye_right = False
-                rospy.logerr(
+                self.logger.error(
                     f"Directory does not exist. Disabling camera fisheye right."
                 )
 
@@ -1367,7 +1340,7 @@ class Kitti360DataPublisher:
                                  "data")
 
         if not os.path.exists(data_path):
-            rospy.logerr(
+            self.logger.error(
                 f"{data_path} does not exist. Disabling velodyne pointclouds.")
             self.publish_velodyne = False
             return dict()
@@ -1384,16 +1357,15 @@ class Kitti360DataPublisher:
         cloud_msg = PointCloud2()
         cloud_msg.header.stamp = self.timestamps_velodyne.iloc[frame]
         cloud_msg.header.frame_id = "kitti360_velodyne"
-        cloud_msg.header.seq = frame
 
         # body
         cloud_msg.height = pointcloud_bin.shape[0]
         cloud_msg.width = 1
         cloud_msg.fields = [
-            PointField("x", 0, PointField.FLOAT32, 1),
-            PointField("y", 4, PointField.FLOAT32, 1),
-            PointField("z", 8, PointField.FLOAT32, 1),
-            PointField("intensity", 12, PointField.FLOAT32, 1)
+            PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
+            PointField(name="intensity", offset=12, datatype=PointField.FLOAT32, count=1)
         ]
         # both True and False worked, so idk
         cloud_msg.is_bigendian = False
@@ -1422,7 +1394,7 @@ class Kitti360DataPublisher:
                                  "velodyne_points_labeled")
 
         if not os.path.exists(data_path):
-            rospy.logerr(
+            self.logger.error(
                 f"{data_path} does not exist. Disabling LABELED velodyne pointclouds."
             )
             self.publish_velodyne_labeled = False
@@ -1442,17 +1414,16 @@ class Kitti360DataPublisher:
         cloud_msg = PointCloud2()
         cloud_msg.header.stamp = self.timestamps_velodyne.iloc[frame]
         cloud_msg.header.frame_id = "map"
-        cloud_msg.header.seq = frame
 
         # body
         cloud_msg.height = points.shape[0]
         cloud_msg.width = 1
         cloud_msg.fields = [
-            PointField("x", 0, PointField.FLOAT32, 1),
-            PointField("y", 4, PointField.FLOAT32, 1),
-            PointField("z", 8, PointField.FLOAT32, 1),
-            PointField("intensity", 12, PointField.FLOAT32, 1),
-            PointField("ring", 16, PointField.UINT16, 1)
+            PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
+            PointField(name="intensity", offset=12, datatype=PointField.FLOAT32, count=1),
+            PointField(name="ring", offset=16, datatype=PointField.UINT16, count=1)
         ]
         # both True and False worked, so idk
         cloud_msg.is_bigendian = False
@@ -1471,7 +1442,7 @@ class Kitti360DataPublisher:
         # full speed in RVIZ
 
         # transform from GPS/IMU to map (which is identical to world)
-        transform_broadcaster = tf2_ros.TransformBroadcaster()
+        transform_broadcaster = tf2_ros.TransformBroadcaster(self)
 
         t = TransformStamped()
         # this needs to be the timestamp that the pointcloud also uses
@@ -1501,7 +1472,7 @@ class Kitti360DataPublisher:
         # convert from rotation matrix to quatertion
         # (first three columns are transformation matrix)
         tf_matrix44 = np.vstack((tf_matrix, [0, 0, 0, 1]))
-        quat = transformations.quaternion_from_matrix(tf_matrix44)
+        quat = quaternion_from_matrix(tf_matrix44)
         t.transform.rotation = Quaternion(x=quat[0],
                                           y=quat[1],
                                           z=quat[2],
@@ -1525,7 +1496,7 @@ class Kitti360DataPublisher:
                                     "data_2d_semantics/train",
                                     self.SEQUENCE_DIRECTORY, subdir)
             if pub_bool and (not os.path.exists(temp_dir)):
-                rospy.logerr(f"Directory does not exist. Disabling {desc}.")
+                self.logger.error(f"Directory does not exist. Disabling {desc}.")
                 return False
             if pub_bool:
                 try:
@@ -1607,14 +1578,13 @@ class Kitti360DataPublisher:
                     self.records_3d_semantics_dynamic = df.to_records(
                         index=False).tobytes()
                     self.filename_3d_semantics_dynamic = path
-                    rospy.loginfo(
+                    self.logger.info(
                         f"loaded new batch of DYNAMIC 3d semantics: frames {cand['start_frame'].iloc[0]} to {cand['end_frame'].iloc[0]}"
                     )
 
                 msg = PointCloud2()
                 msg.header.stamp = self.timestamps_velodyne.iloc[frame]
                 msg.header.frame_id = "map"  # == "world"
-                msg.header.seq = frame
 
                 # body
                 row_byte_length = 32
@@ -1624,17 +1594,17 @@ class Kitti360DataPublisher:
                         row_byte_length))
                 msg.width = 1
                 msg.fields = [
-                    PointField("x", 0, PointField.FLOAT32, 1),
-                    PointField("y", 4, PointField.FLOAT32, 1),
-                    PointField("z", 8, PointField.FLOAT32, 1),
-                    PointField("red", 12, PointField.UINT8, 1),
-                    PointField("green", 13, PointField.UINT8, 1),
-                    PointField("blue", 14, PointField.UINT8, 1),
-                    PointField("semantic", 15, PointField.INT32, 1),
-                    PointField("instance", 19, PointField.INT32, 1),
-                    PointField("visible", 23, PointField.UINT8, 1),
-                    PointField("timestamp", 24, PointField.INT32, 1),
-                    PointField("confidence", 28, PointField.FLOAT32, 1),
+                    PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
+                    PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
+                    PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
+                    PointField(name="red", offset=12, datatype=PointField.UINT8, count=1),
+                    PointField(name="green", offset=13, datatype=PointField.UINT8, count=1),
+                    PointField(name="blue", offset=14, datatype=PointField.UINT8, count=1),
+                    PointField(name="semantic", offset=15, datatype=PointField.INT32, count=1),
+                    PointField(name="instance", offset=19, datatype=PointField.INT32, count=1),
+                    PointField(name="visible", offset=23, datatype=PointField.UINT8, count=1),
+                    PointField(name="timestamp", offset=24, datatype=PointField.INT32, count=1),
+                    PointField(name="confidence", offset=28, datatype=PointField.FLOAT32, count=1),
                 ]
                 # both True and False worked, so idk
                 msg.is_bigendian = False
@@ -1662,14 +1632,13 @@ class Kitti360DataPublisher:
                     self.records_3d_semantics_static = df.to_records(
                         index=False).tobytes()
                     self.filename_3d_semantics_static = path
-                    rospy.loginfo(
+                    self.logger.info(
                         f"loaded new batch of STATIC 3d semantics: frames {cand['start_frame'].iloc[0]} to {cand['end_frame'].iloc[0]}"
                     )
 
                 msg = PointCloud2()
                 msg.header.stamp = self.timestamps_velodyne.iloc[frame]
                 msg.header.frame_id = "map"  # == "world"
-                msg.header.seq = frame
 
                 # body
                 row_byte_length = 28
@@ -1679,16 +1648,16 @@ class Kitti360DataPublisher:
                         row_byte_length))
                 msg.width = 1
                 msg.fields = [
-                    PointField("x", 0, PointField.FLOAT32, 1),
-                    PointField("y", 4, PointField.FLOAT32, 1),
-                    PointField("z", 8, PointField.FLOAT32, 1),
-                    PointField("red", 12, PointField.UINT8, 1),
-                    PointField("green", 13, PointField.UINT8, 1),
-                    PointField("blue", 14, PointField.UINT8, 1),
-                    PointField("semantic", 15, PointField.INT32, 1),
-                    PointField("instance", 19, PointField.INT32, 1),
-                    PointField("visible", 23, PointField.UINT8, 1),
-                    PointField("confidence", 24, PointField.FLOAT32, 1),
+                    PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
+                    PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
+                    PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
+                    PointField(name="red", offset=12, datatype=PointField.UINT8, count=1),
+                    PointField(name="green", offset=13, datatype=PointField.UINT8, count=1),
+                    PointField(name="blue", offset=14, datatype=PointField.UINT8, count=1),
+                    PointField(name="semantic", offset=15, datatype=PointField.INT32, count=1),
+                    PointField(name="instance", offset=19, datatype=PointField.INT32, count=1),
+                    PointField(name="visible", offset=23, datatype=PointField.UINT8, count=1),
+                    PointField(name="confidence", offset=24, datatype=PointField.FLOAT32, count=1),
                 ]
                 # both True and False worked, so idk
                 msg.is_bigendian = False
@@ -1726,8 +1695,8 @@ class Kitti360DataPublisher:
         total_width = (key_col_width + desc_col_width + 3 + margin * 4)
 
         end_line = "+" + "-" * (total_width - 2) + "+"
-        rospy.loginfo(end_line)
-        rospy.loginfo("|  KEY MAPPINGS".ljust(total_width - 1) + "|")
+        self.logger.info(end_line)
+        self.logger.info("|  KEY MAPPINGS".ljust(total_width - 1) + "|")
 
         for key, desc in desc.items():
             s = "|"
@@ -1739,9 +1708,9 @@ class Kitti360DataPublisher:
             s += desc.ljust(desc_col_width)
             s += ' ' * margin
             s += "|"
-            rospy.loginfo(s)
+            self.logger.info(s)
 
-        rospy.loginfo(end_line)
+        self.logger.info(end_line)
 
     def toggle_print_step_duration(self):
         self.print_step_duration = not self.print_step_duration
@@ -1794,7 +1763,7 @@ class Kitti360DataPublisher:
 
         self.sim_paused = False
 
-        rospy.loginfo(f"simulation RESUMED/STARTED")
+        self.logger.info(f"simulation RESUMED/STARTED")
 
         return []
 
@@ -1805,9 +1774,9 @@ class Kitti360DataPublisher:
         self.sim_paused = True
 
         # remember what the simulation time was so that we know where to continue when unpausing
-        self.sim_to_resume_at = self.sim_clock.clock.to_sec()
+        self.sim_to_resume_at = self.sim_clock.clock.to_msg().sec
 
-        rospy.loginfo("simulation PAUSED")
+        self.logger.info("simulation PAUSED")
 
         return []
 
@@ -1851,10 +1820,9 @@ class Kitti360DataPublisher:
                 0] - 1:
             # move simulation to next frame
             self._seek(
-                self.timestamps_velodyne.iloc[self.last_published_frame +
-                                              1].to_sec())
+                self.timestamps_velodyne.iloc[self.last_published_frame + 1].to_msg().sec)
         else:
-            rospy.loginfo(
+            self.logger.info(
                 "Can't advance to next velodyne frame. Simulation is at last frame."
             )
 
@@ -1869,10 +1837,9 @@ class Kitti360DataPublisher:
         # check if we are already at frame 0
         if self.last_published_frame > 0:
             self._seek(
-                self.timestamps_velodyne.iloc[self.last_published_frame -
-                                              1].to_sec())
+                self.timestamps_velodyne.iloc[self.last_published_frame - 1].to_msg().sec)
         else:
-            rospy.loginfo(
+            self.logger.info(
                 "Can't step to previous velodyne frame. Simulation already on first frame."
             )
 
@@ -1891,10 +1858,9 @@ class Kitti360DataPublisher:
                 0] - 1:
             # move simulation to next frame
             self._seek(
-                self.timestamps_sick_points.iloc[self.last_published_sick_frame
-                                                 + 1].to_sec())
+                self.timestamps_sick_points.iloc[self.last_published_sick_frame + 1].to_msg().sec)
         else:
-            rospy.loginfo(
+            self.logger.info(
                 "Can't advance to next sick frame. Simulation is at last frame."
             )
 
@@ -1910,10 +1876,9 @@ class Kitti360DataPublisher:
         if self.last_published_sick_frame > 0:
             # move simulation to next frame
             self._seek(
-                self.timestamps_sick_points.iloc[self.last_published_sick_frame
-                                                 - 1].to_sec())
+                self.timestamps_sick_points.iloc[self.last_published_sick_frame - 1].to_msg().sec)
         else:
-            rospy.loginfo(
+            self.logger.info(
                 "Can't step to previous sick frame. Simulation already on first frame."
             )
 
@@ -1934,16 +1899,16 @@ class Kitti360DataPublisher:
         if factor > 10:
             factor = 10
 
-        self._seek(self.sim_clock.clock.to_sec())
+        self._seek(self.sim_clock.clock.to_msg().sec)
         self.sim_playback_speed = factor
-        rospy.loginfo(f"playback speed factor set to {factor:.2f}")
+        self.logger.info(f"playback speed factor set to {factor:.2f}")
 
     def set_looping(self, request):
         self.sim_looping = request.looping
         if request.looping:
-            rospy.loginfo("LOOPING enabled")
+            self.logger.info("LOOPING enabled")
         else:
-            rospy.loginfo("LOOPING disabled")
+            self.logger.info("LOOPING disabled")
 
         return []
 
@@ -1969,7 +1934,14 @@ class Kitti360DataPublisher:
     def _get_frame_to_be_published(self):
         # get last frame before current simulation time
         # NOTE this returns -1 if the simulation time is before the first frame
-        return self.timestamps_velodyne.searchsorted(self.sim_clock.clock) - 1
+
+        timestamps = pd.Series([t.sec + t.nanosec / 1e9 for t in self.timestamps_velodyne])
+        new_timestamp = self.sim_clock.clock.sec + self.sim_clock.clock.nanosec / 1e9
+        index = timestamps.searchsorted(new_timestamp) - 1
+
+        # index = self.timestamps_velodyne.searchsorted(self.sim_clock.clock) - 1
+
+        return index
 
     def _on_last_frame(self):
         """returns whether last published frame is the last frame of the simulation"""
@@ -2010,7 +1982,14 @@ def getch():
     return c
 
 
-if __name__ == "__main__":
+def main():
+    rclpy.init(args=sys.argv)
     kdp = Kitti360DataPublisher()
+
     kdp.print_help()
     kdp.run()
+
+    rclpy.spin(kdp)
+
+if __name__ == "__main__":
+    main()
