@@ -26,7 +26,7 @@ KITTI-360 files are located.
     roslaunch launch/Kitti360.launch directory:=/path/to/kitti/files/...
 
 This will start the simulation and publish all available sensors in ROS. To
-control the simulation, check out the keyboard mappings that are printed upon
+control the simulation check out the keyboard mappings that are printed upon
 start (and below).
 
 **Mandatory KITTI-360 files**
@@ -54,10 +54,10 @@ markers is increased by a factor of 5 for this screenshot.
 
 ## Labeled Velodyne pointclouds
 
-We provide script (`scripts/label_velodyne`) which labels the velodyne
+We provide a script (`scripts/label_velodyne`) that labels the velodyne
 pointcloud using the semantic 3d data provided by KITTI-360. 
 
-For each point in velodyne pointcloud frame we take the closest point in the 3d
+For each point in velodyne pointcloud frame, we take the closest point in the 3d
 semantics dataset within 20cm radius and take its semantic label. If no point
 is found the point is marked as unlabeled. The obtained label is saved to the
 ring field.
